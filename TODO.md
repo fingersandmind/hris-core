@@ -1614,14 +1614,14 @@ class DisbursementService
 
 ### Checklist
 
-- [ ] Migration: `create_hris_payroll_tables` (pay_periods, payslips, allowances, payslip_disbursements)
-- [ ] Enums: PayPeriodType, PayPeriodStatus, PayslipStatus, PayoutMethod, DisbursementStatus
-- [ ] Model: PayPeriod, Payslip, Allowance, PayslipDisbursement
-- [ ] Service: PayrollService, DisbursementService
+- [x] Migration: `create_hris_payroll_tables` (pay_periods, payslips, allowances, payslip_disbursements)
+- [x] Enums: PayPeriodType, PayPeriodStatus, PayslipStatus, PayoutMethod, DisbursementStatus
+- [x] Model: PayPeriod, Payslip, Allowance, PayslipDisbursement
+- [x] Service: PayrollService, DisbursementService
 - [ ] Support: DefaultPayPeriodResolver (implements PayPeriodResolverInterface)
-- [ ] Events: PayrollComputed, PayrollApproved, PayrollPaid, PayslipGenerated, DisbursementCreated, DisbursementCompleted, DisbursementFailed
-- [ ] Register PayrollService in HrisServiceProvider with tagged calculators
-- [ ] Tests: see below
+- [x] Events: PayrollComputed, PayrollApproved, PayrollPaid, PayslipGenerated, DisbursementCreated, DisbursementCompleted, DisbursementFailed
+- [x] Register PayrollService in HrisServiceProvider with tagged calculators
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -1840,12 +1840,12 @@ ThirteenthMonthPaid     { int $scopeId, int $year }
 
 ### Checklist
 
-- [ ] Migration: `create_hris_loan_tables` (loans, loan_payments, thirteenth_month)
-- [ ] Enums: LoanType, LoanStatus, ThirteenthMonthStatus
-- [ ] Model: Loan, LoanPayment, ThirteenthMonth
-- [ ] Service: LoanService, ThirteenthMonthService
-- [ ] Events: LoanCreated, LoanApproved, LoanFullyPaid, LoanPaymentRecorded, ThirteenthMonthComputed, ThirteenthMonthPaid
-- [ ] Tests: see below
+- [x] Migration: `create_hris_loan_tables` (loans, loan_payments, thirteenth_month)
+- [x] Enums: LoanType, LoanStatus, ThirteenthMonthStatus
+- [x] Model: Loan, LoanPayment, ThirteenthMonth
+- [x] Service: LoanService, ThirteenthMonthService
+- [x] Events: LoanCreated, LoanApproved, LoanFullyPaid, LoanPaymentRecorded, ThirteenthMonthComputed, ThirteenthMonthPaid
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -2394,16 +2394,16 @@ GovernmentReportSubmitted { GovernmentReport $report }
 
 ### Checklist
 
-- [ ] Config: add `payroll.tardiness` and `payroll.undertime` to `config/hris.php`
-- [ ] Migration: add `tardiness_deduction`, `undertime_deduction`, `late_count` to `hris_payslips`
-- [ ] Migration: `create_hris_government_reports_table`
-- [ ] Enums: GovernmentReportType, GovernmentReportStatus
-- [ ] Model: GovernmentReport
-- [ ] Service: TardinessDeductionCalculator
-- [ ] Service: GovernmentReportService
+- [x] Config: add `payroll.tardiness` and `payroll.undertime` to `config/hris.php`
+- [x] Migration: add `tardiness_deduction`, `undertime_deduction`, `late_count` to `hris_payslips`
+- [x] Migration: `create_hris_government_reports_table`
+- [x] Enums: GovernmentReportType, GovernmentReportStatus
+- [x] Model: GovernmentReport
+- [x] Service: TardinessDeductionCalculator
+- [x] Service: GovernmentReportService
 - [ ] Update PayrollService to apply tardiness/undertime deductions
-- [ ] Events: GovernmentReportGenerated, GovernmentReportSubmitted
-- [ ] Tests: see below
+- [x] Events: GovernmentReportGenerated, GovernmentReportSubmitted
+- [x] Tests: see below
 
 ### Test Cases
 
