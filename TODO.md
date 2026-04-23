@@ -35,6 +35,7 @@ Before marking a phase as complete:
 2. No regressions in previous phase tests (`vendor/bin/pest` — full suite)
 3. Code formatted with Pint (`vendor/bin/pint`)
 4. Service methods have proper PHPDoc with `@param`, `@return`, `@throws`
+5. Feature documentation written in `docs/` (see Documentation section below)
 
 ### Integration into kazibufastnet
 
@@ -239,6 +240,86 @@ public function approve(LeaveRequest $request, int $approverId): LeaveRequest
     return $request;
 }
 ```
+
+---
+
+## Documentation
+
+After completing each phase, write a markdown doc in `docs/` explaining the feature for developers who will consume this package. Each doc should be practical and usage-focused.
+
+### Directory Structure
+
+```
+docs/
+├── 01-employees.md
+├── 02-attendance.md
+├── 03-leave-management.md
+├── 04-government-contributions.md
+├── 05-payroll.md
+├── 06-loans-and-13th-month.md
+├── 07-documents-and-salary-history.md
+├── 08-overtime-requests.md
+└── 09-tardiness-and-reports.md
+```
+
+### Doc Template
+
+Each doc should follow this structure:
+
+```markdown
+# {Feature Name}
+
+## Overview
+Brief description of what this module does and why.
+
+## Configuration
+Relevant `config/hris.php` keys and what they control.
+
+## Database Tables
+List tables created, with brief column descriptions (not full schema — that's in TODO.md).
+
+## Models
+List models with key relationships and accessors.
+
+## Usage
+
+### {Service Method}
+```php
+// Example: creating an employee
+$service = app(EmployeeService::class);
+$employee = $service->create($branchId, [
+    'employee_number' => 'EMP-001',
+    'first_name' => 'Juan',
+    // ...
+]);
+```
+
+Show real-world usage for every public service method with example inputs and outputs.
+
+### Events
+List events dispatched and when. Example listener registration:
+```php
+// In host app's EventServiceProvider
+Event::listen(EmployeeCreated::class, function ($event) {
+    Log::info("New employee: {$event->employee->full_name}");
+});
+```
+
+## Business Rules
+PH-specific rules, constraints, validation logic explained in plain language.
+e.g. "SIL requires 12 months of service. Maternity leave is restricted to female employees."
+
+## Error Handling
+List exceptions thrown and when.
+```
+
+### Rules
+
+- Write docs **after** the phase is implemented and tests pass — not before
+- Use real code examples, not pseudocode
+- Include edge cases and gotchas (e.g. "semi-monthly: gov deductions are applied on the first half only")
+- Keep it concise — developers read docs to solve problems, not for prose
+- If a feature interacts with another phase, cross-reference it (e.g. "See [Payroll](05-payroll.md) for how OT hours are used in computation")
 
 ---
 
