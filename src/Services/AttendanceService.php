@@ -23,7 +23,7 @@ class AttendanceService
     /**
      * Record clock-in for an employee.
      */
-    public function clockIn(Employee $employee, ?Carbon $time = null): Attendance
+    public function clockIn(Employee $employee, CarbonInterface|Carbon|null $time = null): Attendance
     {
         $now = $time ?? now();
         $scopeColumn = Employee::scopeColumn();
@@ -44,7 +44,7 @@ class AttendanceService
     /**
      * Record clock-out for an employee.
      */
-    public function clockOut(Employee $employee, ?Carbon $time = null): Attendance
+    public function clockOut(Employee $employee, CarbonInterface|Carbon|null $time = null): Attendance
     {
         $now = $time ?? now();
 
