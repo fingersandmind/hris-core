@@ -116,6 +116,66 @@ class LoanService
     }
 
     /**
+     * Get per-loan amortization breakdown for a pay period.
+     *
+     * @return array<int, array{loan_id: int, loan_type: string, amount: float}>
+     */
+    public function getAmortizationBreakdown(Employee $employee, PayPeriod $payPeriod): array
+    {
+        $loans = $this->getActiveLoans($employee);
+
+        if ($loans->isEmpty()) {
+            return [];
+        }
+
+        $type = $payPeriod->type instanceof PayPeriodType
+            ? $payPeriod->type
+            : PayPeriodType::from($payPeriod->type);
+
+        $divisor = match ($type) {
+            PayPeriodType::SemiMonthlyFirst, PayPeriodType::SemiMonthlySecond => 2,
+            PayPeriodType::Weekly => 4,
+            PayPeriodType::Monthly => 1,
+        };
+
+        return $loans->map(function ($loan) use ($divisor) {
+            $amount = round((float) $loan->monthly_amortization / $divisor, 2);
+            // Don't deduct more than remaining balance
+            $amount = min($amount, (float) $loan->remaining_balance);
+
+            $loanType = $loan->loan_type instanceof \BackedEnum ? $loan->loan_type->value : $loan->loan_type;
+
+            return [
+                'loan_id' => $loan->id,
+                'loan_type' => $loanType,
+                'amount' => $amount,
+            ];
+        })->filter(fn ($item) => $item['amount'] > 0)->values()->toArray();
+    }
+
+    /**
+     * Record loan payments from a computed payslip.
+     * Creates payment records for each active loan and updates balances.
+     */
+    public function recordPayrollDeductions(Employee $employee, PayPeriod $payPeriod, int $payslipId): float
+    {
+        $breakdown = $this->getAmortizationBreakdown($employee, $payPeriod);
+        $totalDeducted = 0.0;
+
+        foreach ($breakdown as $item) {
+            $loan = Loan::withoutGlobalScopes()->find($item['loan_id']);
+            if (! $loan) {
+                continue;
+            }
+
+            $this->recordPayment($loan, $item['amount'], $payslipId, 'Payroll deduction');
+            $totalDeducted += $item['amount'];
+        }
+
+        return round($totalDeducted, 2);
+    }
+
+    /**
      * Check if loan is fully paid and update status.
      */
     public function checkFullyPaid(Loan $loan): Loan

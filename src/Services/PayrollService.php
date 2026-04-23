@@ -144,8 +144,10 @@ class PayrollService
         // 10. Loan deductions
         $loanDeductions = 0.0;
         $cashAdvanceDeductions = 0.0;
+        $loanBreakdown = [];
         if ($this->loanService) {
-            $loanDeductions = $this->loanService->getAmortizationForPeriod($employee, $payPeriod);
+            $loanBreakdown = $this->loanService->getAmortizationBreakdown($employee, $payPeriod);
+            $loanDeductions = round(array_sum(array_column($loanBreakdown, 'amount')), 2);
         }
 
         // 11. Tardiness/undertime deductions
@@ -216,6 +218,7 @@ class PayrollService
                 'pagibig' => $govDeductions['pagibig'],
                 'withholding_tax' => $withholdingTax,
                 'loans' => $loanDeductions,
+                'loan_breakdown' => $loanBreakdown,
                 'cash_advance' => $cashAdvanceDeductions,
                 'tardiness' => $tardinessDeduction,
                 'absent' => $absentDeduction,
@@ -229,6 +232,11 @@ class PayrollService
             ]),
             'status' => 'draft',
         ]);
+
+        // Record loan payments against the payslip
+        if ($this->loanService && $loanDeductions > 0) {
+            $this->loanService->recordPayrollDeductions($employee, $payPeriod, $payslip->id);
+        }
 
         event(new PayslipGenerated($payslip));
 
