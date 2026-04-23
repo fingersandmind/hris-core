@@ -813,3 +813,104 @@ test('DisbursementCreated event dispatched', function () {
 
     Event::assertDispatched(DisbursementCreated::class);
 });
+
+// --- Tardiness Integration ---
+
+test('tardiness deduction included in payslip total_other_deductions', function () {
+    $employee = Employee::factory()->consultant()->withSalary(25000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+    ]);
+
+    $attendanceService = app(AttendanceService::class);
+    $attendanceService->recordFull($employee, [
+        'date' => '2026-03-10',
+        'clock_in' => '2026-03-10 08:15:00',
+        'clock_out' => '2026-03-10 17:00:00',
+        'status' => 'present',
+        'tardiness_minutes' => 15,
+    ]);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    // 15 min late - 5 min grace = 10 min deductible
+    // hourly = 25000/26/8, deduction = (10/60) * hourly
+    $hourlyRate = round(round(25000 / 26, 2) / 8, 2);
+    $expectedDeduction = round((10 / 60) * $hourlyRate, 2);
+
+    expect((float) $payslip->tardiness_deduction)->toBe($expectedDeduction)
+        ->and($payslip->late_count)->toBe(1)
+        ->and((float) $payslip->total_other_deductions)->toBeGreaterThanOrEqual($expectedDeduction);
+});
+
+test('tardiness breakdown stored in payslip deductions_breakdown JSON', function () {
+    $employee = Employee::factory()->consultant()->withSalary(25000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+    ]);
+
+    $attendanceService = app(AttendanceService::class);
+    $attendanceService->recordFull($employee, [
+        'date' => '2026-03-10',
+        'clock_in' => '2026-03-10 08:20:00',
+        'clock_out' => '2026-03-10 17:00:00',
+        'status' => 'present',
+        'tardiness_minutes' => 20,
+    ]);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    expect($payslip->deductions_breakdown)->toHaveKey('tardiness_breakdown')
+        ->and($payslip->deductions_breakdown['tardiness_breakdown'])->toHaveCount(1)
+        ->and($payslip->deductions_breakdown['tardiness_breakdown'][0]['date'])->toBe('2026-03-10');
+});
+
+// --- Loan Integration ---
+
+test('payroll deducts active loan amortizations', function () {
+    $employee = Employee::factory()->consultant()->withSalary(25000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+    ]);
+
+    $loanService = app(\Jmal\Hris\Services\LoanService::class);
+    $loan = $loanService->create($employee, [
+        'loan_type' => 'company',
+        'principal_amount' => 10000,
+        'total_payable' => 10000,
+        'monthly_amortization' => 2000,
+        'start_date' => '2026-03-01',
+    ]);
+    $loanService->approve($loan, 99);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    // Semi-monthly: 2000 / 2 = 1000
+    expect((float) $payslip->loan_deductions)->toBe(1000.00)
+        ->and((float) $payslip->total_other_deductions)->toBeGreaterThanOrEqual(1000.00)
+        ->and((float) $payslip->net_pay)->toBe(round(25000 / 2 - 1000, 2));
+});

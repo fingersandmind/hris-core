@@ -2401,7 +2401,7 @@ GovernmentReportSubmitted { GovernmentReport $report }
 - [x] Model: GovernmentReport
 - [x] Service: TardinessDeductionCalculator
 - [x] Service: GovernmentReportService
-- [ ] Update PayrollService to apply tardiness/undertime deductions
+- [x] Update PayrollService to apply tardiness/undertime deductions
 - [x] Events: GovernmentReportGenerated, GovernmentReportSubmitted
 - [x] Tests: see below
 

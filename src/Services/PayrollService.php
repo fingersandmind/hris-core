@@ -21,6 +21,8 @@ class PayrollService
         protected AttendanceService $attendance,
         protected TaxCalculatorInterface $tax,
         protected iterable $contributionCalculators,
+        protected ?TardinessDeductionCalculator $tardinessCalculator = null,
+        protected ?LoanService $loanService = null,
     ) {}
 
     /**
@@ -129,14 +131,26 @@ class PayrollService
             $withholdingTax = $this->tax->calculate($taxableIncome, $taxPayPeriod, $payPeriod->start_date->year);
         }
 
-        // 10. Loan deductions (will be populated by LoanService in Phase 6)
+        // 10. Loan deductions
         $loanDeductions = 0.0;
         $cashAdvanceDeductions = 0.0;
+        if ($this->loanService) {
+            $loanDeductions = $this->loanService->getAmortizationForPeriod($employee, $payPeriod);
+        }
 
-        // 11. Tardiness/undertime (will be populated by Phase 9)
+        // 11. Tardiness/undertime deductions
         $tardinessDeduction = 0.0;
         $undertimeDeduction = 0.0;
         $lateCount = 0;
+        if ($this->tardinessCalculator) {
+            $attendanceRecords = $this->attendance->getDtr($employee, $payPeriod->start_date, $payPeriod->end_date);
+            $tardinessResult = $this->tardinessCalculator->calculate($employee, $attendanceRecords);
+            $tardinessDeduction = $tardinessResult['total_deduction'];
+            $lateCount = $tardinessResult['late_count'];
+
+            $undertimeResult = $this->tardinessCalculator->calculateUndertime($employee, $attendanceRecords);
+            $undertimeDeduction = $undertimeResult['total_deduction'];
+        }
 
         // 12. Total deductions and net pay
         $totalOtherDeductions = round($loanDeductions + $cashAdvanceDeductions + $tardinessDeduction + $undertimeDeduction, 2);
@@ -183,6 +197,7 @@ class PayrollService
                 'loans' => $loanDeductions,
                 'cash_advance' => $cashAdvanceDeductions,
                 'tardiness' => $tardinessDeduction,
+                'tardiness_breakdown' => $this->tardinessCalculator ? ($tardinessResult['breakdown'] ?? []) : [],
                 'undertime' => $undertimeDeduction,
             ],
             'attendance_summary' => $summary,
