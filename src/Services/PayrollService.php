@@ -294,6 +294,18 @@ class PayrollService
      */
     protected function calculateHolidayPay(Employee $employee, PayPeriod $payPeriod): float
     {
+        // Check if branch pays holidays
+        try {
+            $branchModel = config('hris.branch_model', 'App\\Models\\Branch');
+            $scopeColumn = Employee::scopeColumn();
+            $branch = $branchModel::find($payPeriod->{$scopeColumn});
+            if ($branch && isset($branch->pay_holidays) && ! $branch->pay_holidays) {
+                return 0.0;
+            }
+        } catch (\Throwable) {
+            // Branch model may not have pay_holidays
+        }
+
         $dailyRate = $employee->computedDailyRate();
         $records = $this->attendance->getDtr($employee, $payPeriod->start_date, $payPeriod->end_date);
 
