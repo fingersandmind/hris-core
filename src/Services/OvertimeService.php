@@ -3,6 +3,7 @@
 namespace Jmal\Hris\Services;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Jmal\Hris\Events\OvertimeApproved;
 use Jmal\Hris\Events\OvertimeCancelled;
@@ -103,7 +104,7 @@ class OvertimeService
     /**
      * Get approved+rendered OT for a pay period.
      */
-    public function getApprovedForPeriod(Employee $employee, Carbon $from, Carbon $to): Collection
+    public function getApprovedForPeriod(Employee $employee, CarbonInterface $from, CarbonInterface $to): Collection
     {
         return OvertimeRequest::withoutGlobalScopes()
             ->where('employee_id', $employee->id)
@@ -117,7 +118,7 @@ class OvertimeService
      * Get total approved OT hours for a pay period.
      * Uses actual_hours if rendered, otherwise planned_hours.
      */
-    public function getTotalApprovedHours(Employee $employee, Carbon $from, Carbon $to): float
+    public function getTotalApprovedHours(Employee $employee, CarbonInterface $from, CarbonInterface $to): float
     {
         $requests = $this->getApprovedForPeriod($employee, $from, $to);
 

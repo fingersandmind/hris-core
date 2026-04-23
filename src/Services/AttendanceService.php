@@ -3,6 +3,7 @@
 namespace Jmal\Hris\Services;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Jmal\Hris\Contracts\ScopeResolverInterface;
 use Jmal\Hris\Enums\AttendanceStatus;
@@ -189,7 +190,7 @@ class AttendanceService
     /**
      * Get DTR records for a date range.
      */
-    public function getDtr(Employee $employee, Carbon $from, Carbon $to): Collection
+    public function getDtr(Employee $employee, CarbonInterface $from, CarbonInterface $to): Collection
     {
         return Attendance::withoutGlobalScopes()
             ->forEmployee($employee)
@@ -203,7 +204,7 @@ class AttendanceService
      *
      * @return array{total_hours: float, total_overtime: float, total_tardiness_minutes: int, total_night_diff: float, days_present: int, days_absent: int, rest_days_worked: int}
      */
-    public function getSummary(Employee $employee, Carbon $from, Carbon $to): array
+    public function getSummary(Employee $employee, CarbonInterface $from, CarbonInterface $to): array
     {
         $records = $this->getDtr($employee, $from, $to);
 
