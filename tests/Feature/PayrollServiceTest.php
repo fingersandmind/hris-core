@@ -217,8 +217,8 @@ test('government deductions computed for 25000 salary', function () {
 
     $payslip = $service->computePayslip($payPeriod, $employee);
 
-    // SSS for 25000: employee share = 1125.00
-    expect((float) $payslip->sss_contribution)->toBe(1125.00);
+    // SSS for 25000: MSC 25000, employee share = 1250.00 (SS 1000 + MPF 250)
+    expect((float) $payslip->sss_contribution)->toBe(1250.00);
 
     // PhilHealth: 25000 * 0.05 / 2 = 625
     expect((float) $payslip->philhealth_contribution)->toBe(625.00);
@@ -485,7 +485,8 @@ test('weekly: gov deductions split across 4 weeks', function () {
     $payslip = $service->computePayslip($payPeriod, $employee);
 
     // SSS for 25000 = 1125.00, weekly = 1125/4 = 281.25
-    expect((float) $payslip->sss_contribution)->toBe(281.25);
+    // SSS for 25000 = 1250.00, weekly = 1250/4 = 312.50
+    expect((float) $payslip->sss_contribution)->toBe(312.50);
 });
 
 test('semi-monthly: gov deductions on first half only', function () {

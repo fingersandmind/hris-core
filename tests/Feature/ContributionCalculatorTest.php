@@ -18,28 +18,30 @@ beforeEach(function () {
 
 test('SSS: correct bracket for minimum salary (4000)', function () {
     $calc = app('hris.sss');
+    // 4000 falls into first bracket: MSC 5000, EE 250, ER 500
     $result = $calc->calculate(4000, 2025);
 
-    expect($result->employeeShare)->toBe(180.00)
-        ->and($result->employerShare)->toBe(390.00)
+    expect($result->employeeShare)->toBe(250.00)
+        ->and($result->employerShare)->toBe(500.00)
         ->and($result->name)->toBe('sss');
 });
 
 test('SSS: correct bracket for 25000 salary', function () {
     $calc = app('hris.sss');
+    // 25000 falls into MSC 25000 bracket: EE 1250 (SS 1000 + MPF 250), ER 2500 (SS 2000 + MPF 500)
     $result = $calc->calculate(25000, 2025);
 
-    expect($result->employeeShare)->toBe(1125.00)
-        ->and($result->employerShare)->toBe(2385.00);
+    expect($result->employeeShare)->toBe(1250.00)
+        ->and($result->employerShare)->toBe(2500.00);
 });
 
 test('SSS: max bracket for salary above ceiling', function () {
     $calc = app('hris.sss');
     $result = $calc->calculate(50000, 2025);
 
-    // Should use the highest bracket (30000)
-    expect($result->employeeShare)->toBe(1350.00)
-        ->and($result->employerShare)->toBe(2860.00);
+    // Should use the highest bracket: MSC 35000, EE 1750, ER 3500
+    expect($result->employeeShare)->toBe(1750.00)
+        ->and($result->employerShare)->toBe(3500.00);
 });
 
 test('SSS: falls back to config year when no brackets for given year', function () {
@@ -47,8 +49,8 @@ test('SSS: falls back to config year when no brackets for given year', function 
     // Year 2099 has no brackets, falls back to config year (2025)
     $result = $calc->calculate(25000, 2099);
 
-    expect($result->employeeShare)->toBe(1125.00)
-        ->and($result->employerShare)->toBe(2385.00);
+    expect($result->employeeShare)->toBe(1250.00)
+        ->and($result->employerShare)->toBe(2500.00);
 });
 
 test('SSS: returns zero when no brackets at all', function () {
