@@ -161,8 +161,17 @@ class PayrollService
             $undertimeDeduction = $undertimeResult['total_deduction'];
         }
 
-        // 12. Total deductions and net pay
-        $totalOtherDeductions = round($loanDeductions + $cashAdvanceDeductions + $tardinessDeduction + $undertimeDeduction, 2);
+        // 12. Absent deductions
+        $absentDeduction = 0.0;
+        $absentDays = 0;
+        if (config('hris.payroll.deduct_absences', true)) {
+            $absentResult = $this->calculateAbsentDeduction($employee, $payPeriod, $summary);
+            $absentDeduction = $absentResult['deduction'];
+            $absentDays = $absentResult['absent_days'];
+        }
+
+        // 13. Total deductions and net pay
+        $totalOtherDeductions = round($loanDeductions + $cashAdvanceDeductions + $tardinessDeduction + $undertimeDeduction + $absentDeduction, 2);
         $totalDeductions = round($totalGovDeductions + $withholdingTax + $totalOtherDeductions, 2);
         $netPay = round($grossPay - $totalDeductions, 2);
 
@@ -184,6 +193,8 @@ class PayrollService
             'total_gov_deductions' => $totalGovDeductions,
             'loan_deductions' => $loanDeductions,
             'cash_advance_deductions' => $cashAdvanceDeductions,
+            'absent_deduction' => $absentDeduction,
+            'absent_days' => $absentDays,
             'tardiness_deduction' => $tardinessDeduction,
             'undertime_deduction' => $undertimeDeduction,
             'late_count' => $lateCount,
@@ -206,10 +217,15 @@ class PayrollService
                 'loans' => $loanDeductions,
                 'cash_advance' => $cashAdvanceDeductions,
                 'tardiness' => $tardinessDeduction,
+                'absent' => $absentDeduction,
+                'absent_days' => $absentDays,
                 'tardiness_breakdown' => $this->tardinessCalculator ? ($tardinessResult['breakdown'] ?? []) : [],
                 'undertime' => $undertimeDeduction,
             ],
-            'attendance_summary' => $summary,
+            'attendance_summary' => array_merge($summary, [
+                'expected_days' => $employee->countWorkingDays($payPeriod->start_date, $payPeriod->end_date),
+                'absent_days' => $absentDays,
+            ]),
             'status' => 'draft',
         ]);
 
@@ -406,5 +422,49 @@ class PayrollService
             PayPeriodType::Weekly => 'weekly',
             PayPeriodType::Monthly => 'monthly',
         };
+    }
+
+    /**
+     * Calculate absent deduction based on expected vs actual working days.
+     *
+     * Expected working days = days in period that are not rest days for this employee.
+     * Present days = attendance records with status present/half_day.
+     * Leave days = approved leave days in the period.
+     * Absent days = expected - present - leave days (minimum 0).
+     * Deduction = absent_days × daily_rate.
+     *
+     * @return array{deduction: float, absent_days: int, expected_days: int, present_days: int}
+     */
+    protected function calculateAbsentDeduction(Employee $employee, PayPeriod $payPeriod, array $attendanceSummary): array
+    {
+        $expectedDays = $employee->countWorkingDays($payPeriod->start_date, $payPeriod->end_date);
+        $presentDays = $attendanceSummary['days_present'] ?? 0;
+
+        // Count approved leave days in this period
+        $leaveDays = (float) \Jmal\Hris\Models\LeaveRequest::withoutGlobalScopes()
+            ->where('employee_id', $employee->id)
+            ->whereIn('status', ['approved', 'pending'])
+            ->where(function ($q) use ($payPeriod) {
+                $q->whereBetween('start_date', [$payPeriod->start_date, $payPeriod->end_date])
+                    ->orWhereBetween('end_date', [$payPeriod->start_date, $payPeriod->end_date]);
+            })
+            ->sum('total_days');
+
+        $absentDays = max(0, $expectedDays - $presentDays - (int) $leaveDays);
+
+        // No attendance records at all means no tracking — skip deduction
+        if (($attendanceSummary['days_present'] ?? 0) === 0 && ($attendanceSummary['days_absent'] ?? 0) === 0) {
+            $absentDays = 0;
+        }
+
+        $dailyRate = $employee->computedDailyRate();
+        $deduction = round($absentDays * $dailyRate, 2);
+
+        return [
+            'deduction' => $deduction,
+            'absent_days' => $absentDays,
+            'expected_days' => $expectedDays,
+            'present_days' => $presentDays,
+        ];
     }
 }

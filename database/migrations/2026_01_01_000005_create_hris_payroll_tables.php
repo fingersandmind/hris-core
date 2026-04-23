@@ -48,6 +48,8 @@ return new class extends Migration
             $table->decimal('total_gov_deductions', 10, 2)->default(0);
             $table->decimal('loan_deductions', 10, 2)->default(0);
             $table->decimal('cash_advance_deductions', 10, 2)->default(0);
+            $table->decimal('absent_deduction', 10, 2)->default(0);
+            $table->integer('absent_days')->default(0);
             $table->decimal('tardiness_deduction', 10, 2)->default(0);
             $table->decimal('undertime_deduction', 10, 2)->default(0);
             $table->integer('late_count')->default(0);

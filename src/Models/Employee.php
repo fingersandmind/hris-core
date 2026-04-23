@@ -62,6 +62,8 @@ class Employee extends Model
         'sss_salary_base',
         'philhealth_salary_base',
         'pagibig_salary_base',
+        'work_days_per_week',
+        'rest_days',
         'is_active',
     ];
 
@@ -80,6 +82,8 @@ class Employee extends Model
         'sss_salary_base' => 'decimal:2',
         'philhealth_salary_base' => 'decimal:2',
         'pagibig_salary_base' => 'decimal:2',
+        'work_days_per_week' => 'integer',
+        'rest_days' => 'array',
         'employment_status' => EmploymentStatus::class,
         'civil_status' => CivilStatus::class,
         'gender' => Gender::class,
@@ -130,9 +134,64 @@ class Employee extends Model
             return (float) $this->daily_rate;
         }
 
-        $workingDays = config('hris.payroll.working_days_per_month', 26);
+        $workingDays = $this->workingDaysPerMonth();
 
         return round((float) $this->basic_salary / $workingDays, 2);
+    }
+
+    /**
+     * Get working days per month for this employee.
+     * Uses employee setting → config fallback.
+     */
+    public function workingDaysPerMonth(): int
+    {
+        if ($this->work_days_per_week) {
+            // Approximate: work_days_per_week * 4.33 (weeks per month)
+            return (int) round($this->work_days_per_week * 4.33);
+        }
+
+        return (int) config('hris.payroll.working_days_per_month', 26);
+    }
+
+    /**
+     * Get rest days for this employee.
+     * Defaults to config or ['sunday'].
+     */
+    public function getRestDays(): array
+    {
+        if ($this->rest_days && count($this->rest_days) > 0) {
+            return $this->rest_days;
+        }
+
+        return config('hris.payroll.rest_days', ['sunday']);
+    }
+
+    /**
+     * Check if a given day name is a rest day for this employee.
+     */
+    public function isRestDay(string $dayName): bool
+    {
+        return in_array(strtolower($dayName), array_map('strtolower', $this->getRestDays()));
+    }
+
+    /**
+     * Count expected working days in a date range for this employee.
+     */
+    public function countWorkingDays(\Carbon\CarbonInterface $from, \Carbon\CarbonInterface $to): int
+    {
+        $restDays = $this->getRestDays();
+        $days = 0;
+        $current = \Carbon\Carbon::parse($from);
+        $endDate = \Carbon\Carbon::parse($to);
+
+        while ($current->lte($endDate)) {
+            if (! in_array(strtolower($current->englishDayOfWeek), array_map('strtolower', $restDays))) {
+                $days++;
+            }
+            $current->addDay();
+        }
+
+        return $days;
     }
 
     protected static function newFactory(): EmployeeFactory

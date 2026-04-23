@@ -61,7 +61,9 @@ return [
         'semi_monthly_cutoffs' => [15, 'end'],     // 1-15, 16-end of month
         'monthly_cutoff_day' => 'end',             // day of month or 'end'
         'weekly_start_day' => 'monday',            // day of week the pay period starts
-        'working_days_per_month' => 26,            // for daily rate calculation
+        'working_days_per_month' => 26,            // for daily rate calculation (default for 6-day week)
+        'rest_days' => ['sunday'],                 // default rest days (overridable per employee)
+        'deduct_absences' => true,                 // deduct daily_rate per absent day
 
         // Overtime rates (multiplied on top of hourly rate)
         'ot_regular_rate' => 0.25,                 // +25% on regular day

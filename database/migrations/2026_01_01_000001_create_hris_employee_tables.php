@@ -53,6 +53,8 @@ return new class extends Migration
             $table->decimal('sss_salary_base', 12, 2)->nullable();
             $table->decimal('philhealth_salary_base', 12, 2)->nullable();
             $table->decimal('pagibig_salary_base', 12, 2)->nullable();
+            $table->unsignedTinyInteger('work_days_per_week')->nullable();
+            $table->json('rest_days')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();

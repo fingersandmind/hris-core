@@ -34,6 +34,8 @@ class EmployeeFactory extends Factory
             'deduct_philhealth' => true,
             'deduct_pagibig' => true,
             'deduct_tax' => true,
+            'work_days_per_week' => null,
+            'rest_days' => null,
             'is_active' => true,
         ];
     }
