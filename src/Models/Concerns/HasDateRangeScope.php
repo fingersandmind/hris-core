@@ -9,7 +9,9 @@ trait HasDateRangeScope
 {
     public function scopeForPeriod(Builder $query, Carbon $from, Carbon $to): Builder
     {
-        return $query->whereBetween($this->getDateColumn(), [$from, $to]);
+        $column = $this->getDateColumn();
+
+        return $query->whereDate($column, '>=', $from)->whereDate($column, '<=', $to);
     }
 
     protected function getDateColumn(): string
