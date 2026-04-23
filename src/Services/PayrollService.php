@@ -223,9 +223,14 @@ class PayrollService
      */
     public function approvePayroll(PayPeriod $payPeriod, int $approverId): PayPeriod
     {
+        // Recalculate totals before approving
+        $payslips = $payPeriod->payslips()->get();
         $payPeriod->update([
             'status' => 'approved',
             'approved_by' => $approverId,
+            'total_gross' => $payslips->sum(fn ($p) => (float) $p->gross_pay),
+            'total_deductions' => $payslips->sum(fn ($p) => (float) $p->total_deductions),
+            'total_net' => $payslips->sum(fn ($p) => (float) $p->net_pay),
         ]);
 
         $payPeriod->payslips()->update(['status' => 'final']);
