@@ -15,14 +15,28 @@ class SssCalculator implements ContributionCalculatorInterface
 
     public function calculate(float $monthlySalary, int $year): ContributionResult
     {
-        $bracket = SssContributionBracket::where('effective_year', $year)
+        // Try the given year first, then fall back to the configured SSS table year
+        $effectiveYear = $year;
+        $bracket = SssContributionBracket::where('effective_year', $effectiveYear)
             ->where('range_from', '<=', $monthlySalary)
             ->where('range_to', '>=', $monthlySalary)
             ->first();
 
+        // If no bracket for given year, try config year
+        if (! $bracket) {
+            $configYear = (int) config('hris.contributions.sss_table_year', $year);
+            if ($configYear !== $effectiveYear) {
+                $effectiveYear = $configYear;
+                $bracket = SssContributionBracket::where('effective_year', $effectiveYear)
+                    ->where('range_from', '<=', $monthlySalary)
+                    ->where('range_to', '>=', $monthlySalary)
+                    ->first();
+            }
+        }
+
         // If salary exceeds max bracket, use the highest bracket
         if (! $bracket) {
-            $bracket = SssContributionBracket::where('effective_year', $year)
+            $bracket = SssContributionBracket::where('effective_year', $effectiveYear)
                 ->orderByDesc('range_to')
                 ->first();
         }

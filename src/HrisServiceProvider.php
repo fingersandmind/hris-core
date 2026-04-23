@@ -9,6 +9,7 @@ use Jmal\Hris\Contracts\ScopeResolverInterface;
 use Jmal\Hris\Contracts\TaxCalculatorInterface;
 use Jmal\Hris\Services\BirTaxCalculator;
 use Jmal\Hris\Services\PagIbigCalculator;
+use Jmal\Hris\Services\PayrollService;
 use Jmal\Hris\Services\PhilHealthCalculator;
 use Jmal\Hris\Services\SssCalculator;
 
@@ -29,6 +30,16 @@ class HrisServiceProvider extends ServiceProvider
         $this->app->singleton(TaxCalculatorInterface::class, BirTaxCalculator::class);
 
         $this->app->tag(['hris.sss', 'hris.philhealth', 'hris.pagibig'], 'hris.contribution_calculators');
+
+        $this->app->singleton(PayrollService::class, function ($app) {
+            $calculators = iterator_to_array($app->tagged('hris.contribution_calculators'));
+
+            return new PayrollService(
+                $app->make(\Jmal\Hris\Services\AttendanceService::class),
+                $app->make(TaxCalculatorInterface::class),
+                $calculators,
+            );
+        });
     }
 
     public function boot(): void

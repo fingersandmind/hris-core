@@ -66,8 +66,8 @@ return new class extends Migration
             $table->string('bank_name')->nullable();
             $table->string('account_number')->nullable();
             $table->string('account_name')->nullable();
-            $table->string('split_type');
-            $table->decimal('split_value', 10, 2);
+            $table->string('split_type')->nullable();
+            $table->decimal('split_value', 10, 2)->nullable();
             $table->boolean('is_primary')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamps();

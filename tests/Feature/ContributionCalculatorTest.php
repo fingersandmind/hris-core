@@ -42,8 +42,22 @@ test('SSS: max bracket for salary above ceiling', function () {
         ->and($result->employerShare)->toBe(2860.00);
 });
 
-test('SSS: returns zero when no brackets seeded for year', function () {
+test('SSS: falls back to config year when no brackets for given year', function () {
     $calc = app('hris.sss');
+    // Year 2099 has no brackets, falls back to config year (2025)
+    $result = $calc->calculate(25000, 2099);
+
+    expect($result->employeeShare)->toBe(1125.00)
+        ->and($result->employerShare)->toBe(2385.00);
+});
+
+test('SSS: returns zero when no brackets at all', function () {
+    $calc = app('hris.sss');
+
+    // Clear all data and set config to a non-existent year
+    config(['hris.contributions.sss_table_year' => 2099]);
+    \Jmal\Hris\Models\SssContributionBracket::query()->delete();
+
     $result = $calc->calculate(25000, 2099);
 
     expect($result->employeeShare)->toBe(0.0)

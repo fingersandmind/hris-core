@@ -19,6 +19,18 @@ class BirTaxCalculator implements TaxCalculatorInterface
             ->where(fn ($q) => $q->whereNull('range_to')->orWhere('range_to', '>=', $taxableIncome))
             ->first();
 
+        // Fall back to config year if no bracket found for given year
+        if (! $bracket) {
+            $configYear = (int) config('hris.contributions.sss_table_year', $year);
+            if ($configYear !== $year) {
+                $bracket = TaxBracket::where('effective_year', $configYear)
+                    ->where('pay_period', $payPeriod)
+                    ->where('range_from', '<', $taxableIncome)
+                    ->where(fn ($q) => $q->whereNull('range_to')->orWhere('range_to', '>=', $taxableIncome))
+                    ->first();
+            }
+        }
+
         if (! $bracket) {
             return 0.0;
         }
