@@ -344,7 +344,15 @@ class PayrollService
                     continue;
                 }
 
-                $result = $calculator->calculate($monthlySalary, $year);
+                // Use per-contribution salary base override if set, otherwise use actual salary
+                $salaryBase = match ($name) {
+                    'sss' => $employee->sss_salary_base ? (float) $employee->sss_salary_base : $monthlySalary,
+                    'philhealth' => $employee->philhealth_salary_base ? (float) $employee->philhealth_salary_base : $monthlySalary,
+                    'pagibig' => $employee->pagibig_salary_base ? (float) $employee->pagibig_salary_base : $monthlySalary,
+                    default => $monthlySalary,
+                };
+
+                $result = $calculator->calculate($salaryBase, $year);
 
                 match ($name) {
                     'sss' => $sss = round($result->employeeShare / $divisor, 2),

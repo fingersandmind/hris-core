@@ -50,6 +50,9 @@ return new class extends Migration
             $table->boolean('deduct_philhealth')->default(true);
             $table->boolean('deduct_pagibig')->default(true);
             $table->boolean('deduct_tax')->default(true);
+            $table->decimal('sss_salary_base', 12, 2)->nullable();
+            $table->decimal('philhealth_salary_base', 12, 2)->nullable();
+            $table->decimal('pagibig_salary_base', 12, 2)->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();

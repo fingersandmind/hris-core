@@ -914,3 +914,78 @@ test('payroll deducts active loan amortizations', function () {
         ->and((float) $payslip->total_other_deductions)->toBeGreaterThanOrEqual(1000.00)
         ->and((float) $payslip->net_pay)->toBe(round(25000 / 2 - 1000, 2));
 });
+
+// --- Government Deduction Salary Base Override ---
+
+test('SSS uses sss_salary_base override instead of basic_salary', function () {
+    // Employee earns 25000 but SSS declared at 15000
+    $employee = Employee::factory()->withSalary(25000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+        'sss_salary_base' => 15000,
+    ]);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    // SSS for 15000 should be less than SSS for 25000
+    $sssCalc = app('hris.sss');
+    $expectedSss = $sssCalc->calculate(15000, 2025)->employeeShare;
+    $fullSss = $sssCalc->calculate(25000, 2025)->employeeShare;
+
+    expect((float) $payslip->sss_contribution)->toBe($expectedSss)
+        ->and($expectedSss)->toBeLessThan($fullSss);
+});
+
+test('PhilHealth uses philhealth_salary_base override', function () {
+    $employee = Employee::factory()->withSalary(30000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+        'philhealth_salary_base' => 10000,
+    ]);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    // PhilHealth at 10000 base: 10000 * 0.05 / 2 = 250
+    expect((float) $payslip->philhealth_contribution)->toBe(250.00);
+});
+
+test('salary base override is null, falls back to basic_salary', function () {
+    $employee = Employee::factory()->withSalary(25000)->create([
+        'branch_id' => 1,
+        'date_hired' => '2024-01-01',
+        'sss_salary_base' => null,
+        'philhealth_salary_base' => null,
+        'pagibig_salary_base' => null,
+    ]);
+
+    $service = app(PayrollService::class);
+    $payPeriod = $service->createPayPeriod(1, [
+        'name' => 'March 1-15, 2026',
+        'start_date' => '2026-03-01',
+        'end_date' => '2026-03-15',
+        'type' => 'semi_monthly_first',
+    ]);
+
+    $payslip = $service->computePayslip($payPeriod, $employee);
+
+    // Should use basic_salary (25000) for all
+    $sssCalc = app('hris.sss');
+    expect((float) $payslip->sss_contribution)->toBe($sssCalc->calculate(25000, 2025)->employeeShare)
+        ->and((float) $payslip->philhealth_contribution)->toBe(625.00); // 25000 * 0.05 / 2
+});

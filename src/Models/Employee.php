@@ -59,6 +59,9 @@ class Employee extends Model
         'deduct_philhealth',
         'deduct_pagibig',
         'deduct_tax',
+        'sss_salary_base',
+        'philhealth_salary_base',
+        'pagibig_salary_base',
         'is_active',
     ];
 
@@ -74,6 +77,9 @@ class Employee extends Model
         'deduct_philhealth' => 'boolean',
         'deduct_pagibig' => 'boolean',
         'deduct_tax' => 'boolean',
+        'sss_salary_base' => 'decimal:2',
+        'philhealth_salary_base' => 'decimal:2',
+        'pagibig_salary_base' => 'decimal:2',
         'employment_status' => EmploymentStatus::class,
         'civil_status' => CivilStatus::class,
         'gender' => Gender::class,
