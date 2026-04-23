@@ -2,12 +2,12 @@
 
 namespace Jmal\Hris\Models\Concerns;
 
-use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 
 trait HasDateRangeScope
 {
-    public function scopeForPeriod(Builder $query, Carbon $from, Carbon $to): Builder
+    public function scopeForPeriod(Builder $query, CarbonInterface $from, CarbonInterface $to): Builder
     {
         $column = $this->getDateColumn();
 

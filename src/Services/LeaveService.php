@@ -203,7 +203,7 @@ class LeaveService
     /**
      * Calculate leave days between dates, excluding weekends if configured.
      */
-    public function calculateLeaveDays(Carbon $start, Carbon $end, bool $isHalfDay = false): float
+    public function calculateLeaveDays(Carbon|\Carbon\CarbonInterface $start, Carbon|\Carbon\CarbonInterface $end, bool $isHalfDay = false): float
     {
         if ($isHalfDay) {
             return 0.5;
