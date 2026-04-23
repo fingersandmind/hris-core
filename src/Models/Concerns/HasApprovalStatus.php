@@ -8,17 +8,23 @@ trait HasApprovalStatus
 {
     public function isPending(): bool
     {
-        return $this->status === 'pending';
+        $status = $this->status instanceof \BackedEnum ? $this->status->value : $this->status;
+
+        return $status === 'pending';
     }
 
     public function isApproved(): bool
     {
-        return $this->status === 'approved';
+        $status = $this->status instanceof \BackedEnum ? $this->status->value : $this->status;
+
+        return $status === 'approved';
     }
 
     public function isRejected(): bool
     {
-        return $this->status === 'rejected';
+        $status = $this->status instanceof \BackedEnum ? $this->status->value : $this->status;
+
+        return $status === 'rejected';
     }
 
     public function scopePending(Builder $query): Builder
