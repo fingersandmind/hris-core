@@ -1618,7 +1618,7 @@ class DisbursementService
 - [x] Enums: PayPeriodType, PayPeriodStatus, PayslipStatus, PayoutMethod, DisbursementStatus
 - [x] Model: PayPeriod, Payslip, Allowance, PayslipDisbursement
 - [x] Service: PayrollService, DisbursementService
-- [ ] Support: DefaultPayPeriodResolver (implements PayPeriodResolverInterface)
+- [x] Support: DefaultPayPeriodResolver (implements PayPeriodResolverInterface)
 - [x] Events: PayrollComputed, PayrollApproved, PayrollPaid, PayslipGenerated, DisbursementCreated, DisbursementCompleted, DisbursementFailed
 - [x] Register PayrollService in HrisServiceProvider with tagged calculators
 - [x] Tests: see below

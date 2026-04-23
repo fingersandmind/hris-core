@@ -5,6 +5,7 @@ namespace Jmal\Hris;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Jmal\Hris\Contracts\AuthorizationResolverInterface;
+use Jmal\Hris\Contracts\PayPeriodResolverInterface;
 use Jmal\Hris\Contracts\ScopeResolverInterface;
 use Jmal\Hris\Contracts\TaxCalculatorInterface;
 use Jmal\Hris\Services\BirTaxCalculator;
@@ -22,6 +23,8 @@ class HrisServiceProvider extends ServiceProvider
         $this->app->singleton(ScopeResolverInterface::class, fn () => new (config('hris.scope.resolver')));
 
         $this->app->singleton(AuthorizationResolverInterface::class, fn () => new (config('hris.authorization.resolver')));
+
+        $this->app->singleton(PayPeriodResolverInterface::class, \Jmal\Hris\Support\DefaultPayPeriodResolver::class);
 
         // Contribution calculators
         $this->app->singleton('hris.sss', SssCalculator::class);
