@@ -1,0 +1,35 @@
+{
+    "name": "jmal/hris",
+    "description": "Philippine HRIS package: employees, attendance, leave, payroll, government deductions, loans, payslips.",
+    "type": "library",
+    "license": "proprietary",
+    "autoload": {
+        "psr-4": {
+            "Jmal\\Hris\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jmal\\Hris\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jmal\\Hris\\HrisServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "illuminate/database": "^12.0",
+        "illuminate/support": "^12.0",
+        "illuminate/http": "^12.0",
+        "illuminate/routing": "^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0"
+    }
+}
