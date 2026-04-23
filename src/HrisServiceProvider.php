@@ -40,6 +40,7 @@ class HrisServiceProvider extends ServiceProvider
                 $calculators,
                 $app->make(\Jmal\Hris\Services\TardinessDeductionCalculator::class),
                 $app->make(\Jmal\Hris\Services\LoanService::class),
+                $app->make(\Jmal\Hris\Services\OvertimeService::class),
             );
         });
     }

@@ -76,6 +76,8 @@ test('basic pay: 25000 weekly = 6250', function () {
 // --- OT Pay ---
 
 test('OT pay: +25% on regular day', function () {
+    config(['hris.payroll.require_ot_approval' => false]);
+
     $employee = Employee::factory()->withSalary(25000)->create(['branch_id' => 1, 'date_hired' => '2024-01-01']);
     $attendanceService = app(AttendanceService::class);
 

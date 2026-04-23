@@ -2161,14 +2161,14 @@ OvertimeCancelled  { OvertimeRequest $request }
 
 ### Checklist
 
-- [ ] Migration: `create_hris_overtime_requests_table`
-- [ ] Enum: OvertimeStatus
-- [ ] Model: OvertimeRequest
-- [ ] Service: OvertimeService
-- [ ] Config: add `payroll.require_ot_approval` to `config/hris.php`
-- [ ] Events: OvertimeRequested, OvertimeApproved, OvertimeRejected, OvertimeRendered, OvertimeCancelled
-- [ ] Update PayrollService to check `require_ot_approval` config
-- [ ] Tests: see below
+- [x] Migration: `create_hris_overtime_requests_table`
+- [x] Enum: OvertimeStatus
+- [x] Model: OvertimeRequest
+- [x] Service: OvertimeService
+- [x] Config: add `payroll.require_ot_approval` to `config/hris.php`
+- [x] Events: OvertimeRequested, OvertimeApproved, OvertimeRejected, OvertimeRendered, OvertimeCancelled
+- [x] Update PayrollService to check `require_ot_approval` config
+- [x] Tests: see below
 
 ### Test Cases
 

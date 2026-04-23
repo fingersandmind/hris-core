@@ -23,6 +23,7 @@ class PayrollService
         protected iterable $contributionCalculators,
         protected ?TardinessDeductionCalculator $tardinessCalculator = null,
         protected ?LoanService $loanService = null,
+        protected ?OvertimeService $overtimeService = null,
     ) {}
 
     /**
@@ -99,9 +100,17 @@ class PayrollService
             $payPeriod->end_date,
         );
 
-        // 3. OT pay
+        // 3. OT pay — use approved OT hours when require_ot_approval is enabled
+        $otHours = $summary['total_overtime'];
+        if (config('hris.payroll.require_ot_approval', true) && $this->overtimeService) {
+            $otHours = $this->overtimeService->getTotalApprovedHours(
+                $employee,
+                $payPeriod->start_date,
+                $payPeriod->end_date,
+            );
+        }
         $otRate = config('hris.payroll.ot_regular_rate', 0.25);
-        $overtimePay = round($hourlyRate * (1 + $otRate) * $summary['total_overtime'], 2);
+        $overtimePay = round($hourlyRate * (1 + $otRate) * $otHours, 2);
 
         // 4. Holiday pay
         $holidayPay = $this->calculateHolidayPay($employee, $payPeriod);

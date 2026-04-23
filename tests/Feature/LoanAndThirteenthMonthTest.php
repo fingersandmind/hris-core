@@ -244,6 +244,7 @@ test('13th month: prorated for employee hired July = 6 months', function () {
 });
 
 test('13th month: excludes OT, holiday pay, allowances', function () {
+    config(['hris.payroll.require_ot_approval' => false]);
     (new HrisSssContributionSeeder)->run();
     (new HrisTaxTableSeeder)->run();
 
