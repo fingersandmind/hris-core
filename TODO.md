@@ -676,16 +676,16 @@ class EmployeeSeparated {
 
 ### Checklist
 
-- [ ] Migration: `create_hris_employee_tables` (employees, employee_payout_accounts, departments, positions)
-- [ ] Enums: EmploymentStatus, CivilStatus, Gender, PayFrequency, PayoutMethod, SplitType
-- [ ] Model: Employee (with HasConfigurableScope, casts, relationships, accessors)
-- [ ] Model: EmployeePayoutAccount
-- [ ] Model: Department
-- [ ] Model: Position
-- [ ] Service: EmployeeService
-- [ ] Events: EmployeeCreated, EmployeeUpdated, EmployeeSeparated
-- [ ] Factory: EmployeeFactory (with states: regular, probationary, contractual, separated)
-- [ ] Tests: see below
+- [x] Migration: `create_hris_employee_tables` (employees, employee_payout_accounts, departments, positions)
+- [x] Enums: EmploymentStatus, CivilStatus, Gender, PayFrequency, PayoutMethod, SplitType
+- [x] Model: Employee (with HasConfigurableScope, casts, relationships, accessors)
+- [x] Model: EmployeePayoutAccount
+- [x] Model: Department
+- [x] Model: Position
+- [x] Service: EmployeeService
+- [x] Events: EmployeeCreated, EmployeeUpdated, EmployeeSeparated
+- [x] Factory: EmployeeFactory (with states: regular, probationary, contractual, separated)
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -896,13 +896,13 @@ AttendanceRecorded  { Attendance $attendance }
 
 ### Checklist
 
-- [ ] Migration: `create_hris_attendance_tables` (attendances, schedules, holidays)
-- [ ] Enums: AttendanceStatus, HolidayType
-- [ ] Model: Attendance, Schedule, Holiday
-- [ ] Service: AttendanceService
-- [ ] Events: EmployeeClockedIn, EmployeeClockedOut, AttendanceRecorded
-- [ ] Factory: AttendanceFactory
-- [ ] Tests: see below
+- [x] Migration: `create_hris_attendance_tables` (attendances, schedules, holidays)
+- [x] Enums: AttendanceStatus, HolidayType
+- [x] Model: Attendance, Schedule, Holiday
+- [x] Service: AttendanceService
+- [x] Events: EmployeeClockedIn, EmployeeClockedOut, AttendanceRecorded
+- [x] Factory: AttendanceFactory
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -1100,15 +1100,15 @@ LeaveCreditsAccrued { Employee $employee, LeaveBalance $balance }
 
 ### Checklist
 
-- [ ] Migration: `create_hris_leave_tables` (leave_types, leave_balances, leave_requests)
-- [ ] Seeder: HrisLeaveTypeSeeder (PH default leave types)
-- [ ] Enums: LeaveStatus, HalfDayPeriod
-- [ ] Model: LeaveType, LeaveBalance, LeaveRequest
-- [ ] Service: LeaveService
-- [ ] Support: DefaultApprovalWorkflow (implements ApprovalWorkflowInterface)
-- [ ] Exceptions: InsufficientBalanceException, IneligibleLeaveException
-- [ ] Events: LeaveRequested, LeaveApproved, LeaveRejected, LeaveCancelled, LeaveCreditsAccrued
-- [ ] Tests: see below
+- [x] Migration: `create_hris_leave_tables` (leave_types, leave_balances, leave_requests)
+- [x] Seeder: HrisLeaveTypeSeeder (PH default leave types)
+- [x] Enums: LeaveStatus, HalfDayPeriod
+- [x] Model: LeaveType, LeaveBalance, LeaveRequest
+- [x] Service: LeaveService
+- [x] Support: DefaultApprovalWorkflow (implements ApprovalWorkflowInterface)
+- [x] Exceptions: InsufficientBalanceException, IneligibleLeaveException
+- [x] Events: LeaveRequested, LeaveApproved, LeaveRejected, LeaveCancelled, LeaveCreditsAccrued
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -1322,13 +1322,13 @@ class BirTaxCalculator implements TaxCalculatorInterface
 
 ### Checklist
 
-- [ ] Migration: `create_hris_contribution_tables` (sss_contribution_table, tax_table)
-- [ ] Seeder: HrisSssContributionSeeder (2025 brackets)
-- [ ] Seeder: HrisTaxTableSeeder (BIR TRAIN law brackets, monthly + semi_monthly)
-- [ ] Model: SssContributionBracket, TaxBracket
-- [ ] Service: SssCalculator, PhilHealthCalculator, PagIbigCalculator, BirTaxCalculator
-- [ ] Register calculators in HrisServiceProvider (tagged as `hris.contribution_calculators`)
-- [ ] Tests: see below
+- [x] Migration: `create_hris_contribution_tables` (sss_contribution_table, tax_table)
+- [x] Seeder: HrisSssContributionSeeder (2025 brackets)
+- [x] Seeder: HrisTaxTableSeeder (BIR TRAIN law brackets, monthly + semi_monthly)
+- [x] Model: SssContributionBracket, TaxBracket
+- [x] Service: SssCalculator, PhilHealthCalculator, PagIbigCalculator, BirTaxCalculator
+- [x] Register calculators in HrisServiceProvider (tagged as `hris.contribution_calculators`)
+- [x] Tests: see below
 
 ### Test Cases
 
@@ -2001,12 +2001,12 @@ SalaryAdjustmentApproved { SalaryAdjustment $adjustment }
 
 ### Checklist
 
-- [ ] Migration: `create_hris_document_and_salary_tables` (employee_documents, salary_adjustments)
-- [ ] Enums: DocumentCategory, SalaryAdjustmentReason
-- [ ] Model: EmployeeDocument, SalaryAdjustment
-- [ ] Service: DocumentService, SalaryAdjustmentService
-- [ ] Events: DocumentUploaded, DocumentDeleted, SalaryAdjusted, SalaryAdjustmentApproved
-- [ ] Tests: see below
+- [x] Migration: `create_hris_document_and_salary_tables` (employee_documents, salary_adjustments)
+- [x] Enums: DocumentCategory, SalaryAdjustmentReason
+- [x] Model: EmployeeDocument, SalaryAdjustment
+- [x] Service: DocumentService, SalaryAdjustmentService
+- [x] Events: DocumentUploaded, DocumentDeleted, SalaryAdjusted, SalaryAdjustmentApproved
+- [x] Tests: see below
 
 ### Test Cases
 
