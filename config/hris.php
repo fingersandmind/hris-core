@@ -1,5 +1,8 @@
 <?php
 
+use Jmal\Hris\Support\DefaultAuthorizationResolver;
+use Jmal\Hris\Support\DefaultScopeResolver;
+
 return [
 
     /*
@@ -10,7 +13,7 @@ return [
     'scope' => [
         'column' => 'branch_id',
         'user_scope_attribute' => 'branch_id',
-        'resolver' => \Jmal\Hris\Support\DefaultScopeResolver::class,
+        'resolver' => DefaultScopeResolver::class,
     ],
 
     /*
@@ -19,7 +22,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'authorization' => [
-        'resolver' => \Jmal\Hris\Support\DefaultAuthorizationResolver::class,
+        'resolver' => DefaultAuthorizationResolver::class,
         'user_role_attribute' => 'user_type',
         'roles' => [
             'manage_employees' => ['admin', 'partner'],

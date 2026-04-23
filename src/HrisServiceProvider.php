@@ -2,8 +2,8 @@
 
 namespace Jmal\Hris;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 use Jmal\Hris\Contracts\AuthorizationResolverInterface;
 use Jmal\Hris\Contracts\ScopeResolverInterface;
 
