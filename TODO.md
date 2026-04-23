@@ -1600,15 +1600,592 @@ test('ThirteenthMonthComputed event dispatched', function () { ... });
 
 ---
 
+## Phase 7: Employee Documents (201 File) & Salary History
+
+### Tables
+
+#### `hris_employee_documents`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| {scope_column} | unsignedBigInteger | |
+| employee_id | foreignId → hris_employees, cascadeOnDelete | |
+| category | string | contract, government_id, certificate, medical, nbi_clearance, memo, other |
+| name | string | Display name (e.g. "Employment Contract 2025") |
+| file_path | string | Storage path |
+| file_type | string, nullable | MIME type |
+| file_size | integer, nullable | Bytes |
+| expiry_date | date, nullable | For IDs, clearances that expire |
+| notes | text, nullable | |
+| uploaded_by | foreignId → users | |
+| timestamps | | |
+
+**Indexes:** `[scope, employee_id]`, `[employee_id, category]`
+
+#### `hris_salary_adjustments`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| {scope_column} | unsignedBigInteger | |
+| employee_id | foreignId → hris_employees | |
+| previous_salary | decimal(12,2) | |
+| new_salary | decimal(12,2) | |
+| previous_daily_rate | decimal(10,2), nullable | |
+| new_daily_rate | decimal(10,2), nullable | |
+| reason | string | promotion, merit_increase, regularization, demotion, adjustment, correction |
+| effective_date | date | |
+| remarks | text, nullable | |
+| approved_by | foreignId → users, nullable | |
+| approved_at | datetime, nullable | |
+| created_by | foreignId → users | |
+| timestamps | | |
+
+**Indexes:** `[employee_id, effective_date]`
+
+### Enums
+
+```php
+// src/Enums/DocumentCategory.php
+enum DocumentCategory: string {
+    case Contract = 'contract';
+    case GovernmentId = 'government_id';
+    case Certificate = 'certificate';
+    case Medical = 'medical';
+    case NbiClearance = 'nbi_clearance';
+    case Memo = 'memo';
+    case Other = 'other';
+
+    public function label(): string { ... }
+}
+
+// src/Enums/SalaryAdjustmentReason.php
+enum SalaryAdjustmentReason: string {
+    case Promotion = 'promotion';
+    case MeritIncrease = 'merit_increase';
+    case Regularization = 'regularization';
+    case Demotion = 'demotion';
+    case Adjustment = 'adjustment';
+    case Correction = 'correction';
+
+    public function label(): string { ... }
+}
+```
+
+### Service: `DocumentService`
+
+```php
+namespace Jmal\Hris\Services;
+
+class DocumentService
+{
+    /** Upload and attach a document to an employee. */
+    public function upload(Employee $employee, array $data, $file): EmployeeDocument
+
+    /** List all documents for an employee, optionally filtered by category. */
+    public function listForEmployee(Employee $employee, ?string $category = null): Collection
+
+    /** Delete a document (removes file from storage). */
+    public function delete(EmployeeDocument $document): void
+
+    /** Get documents expiring within N days (for alerts). */
+    public function getExpiringSoon(int $scopeId, int $daysAhead = 30): Collection
+}
+```
+
+### Service: `SalaryAdjustmentService`
+
+```php
+namespace Jmal\Hris\Services;
+
+class SalaryAdjustmentService
+{
+    /**
+     * Record a salary adjustment and update the employee's current salary.
+     * Captures previous salary as a snapshot before applying the change.
+     */
+    public function adjust(Employee $employee, array $data, int $createdBy): SalaryAdjustment
+
+    /** Approve a pending salary adjustment. */
+    public function approve(SalaryAdjustment $adjustment, int $approverId): SalaryAdjustment
+
+    /** Get salary history for an employee (ordered by effective_date desc). */
+    public function getHistory(Employee $employee): Collection
+
+    /** Get the salary as of a specific date (for retroactive calculations). */
+    public function getSalaryAsOf(Employee $employee, \Carbon\Carbon $date): float
+}
+```
+
+### Events
+
+```php
+DocumentUploaded       { EmployeeDocument $document }
+DocumentDeleted        { Employee $employee, string $documentName }
+SalaryAdjusted         { SalaryAdjustment $adjustment }
+SalaryAdjustmentApproved { SalaryAdjustment $adjustment }
+```
+
+### Checklist
+
+- [ ] Migration: `create_hris_document_and_salary_tables` (employee_documents, salary_adjustments)
+- [ ] Enums: DocumentCategory, SalaryAdjustmentReason
+- [ ] Model: EmployeeDocument, SalaryAdjustment
+- [ ] Service: DocumentService, SalaryAdjustmentService
+- [ ] Events: DocumentUploaded, DocumentDeleted, SalaryAdjusted, SalaryAdjustmentApproved
+- [ ] Tests: see below
+
+### Test Cases
+
+```php
+// Documents
+test('can upload document to employee', function () { ... });
+test('can list documents filtered by category', function () { ... });
+test('can delete document and remove file from storage', function () { ... });
+test('expiring documents returned for 30-day lookahead', function () { ... });
+test('expired documents flagged correctly', function () { ... });
+test('documents scoped by branch', function () { ... });
+
+// Salary Adjustments
+test('salary adjustment records previous and new salary', function () {
+    // employee at 25000, adjust to 30000
+    // adjustment.previous_salary = 25000, adjustment.new_salary = 30000
+    // employee.basic_salary updated to 30000
+});
+test('salary adjustment updates employee basic_salary on approval', function () { ... });
+test('salary history ordered by effective_date descending', function () { ... });
+test('getSalaryAsOf returns correct salary for past date', function () {
+    // hired Jan at 20000, promoted July to 25000, promoted Dec to 30000
+    // getSalaryAsOf(March) = 20000, getSalaryAsOf(Sept) = 25000
+});
+test('SalaryAdjusted event dispatched', function () { ... });
+test('regularization adjustment recorded when employee regularized', function () { ... });
+```
+
+---
+
+## Phase 8: Overtime Requests & Approval
+
+### Tables
+
+#### `hris_overtime_requests`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| {scope_column} | unsignedBigInteger | |
+| employee_id | foreignId → hris_employees | |
+| date | date | The date OT will be/was performed |
+| planned_start | time | Expected OT start time |
+| planned_end | time | Expected OT end time |
+| planned_hours | decimal(5,2) | |
+| actual_hours | decimal(5,2), nullable | Filled after OT is rendered |
+| reason | text | Why OT is needed |
+| is_rest_day | boolean, default false | |
+| is_holiday | boolean, default false | |
+| holiday_type | string, nullable | regular, special_non_working |
+| status | string | pending, approved, rejected, rendered, cancelled |
+| approved_by | foreignId → users, nullable | |
+| approved_at | datetime, nullable | |
+| rejection_reason | text, nullable | |
+| rendered_at | datetime, nullable | When actual hours were recorded |
+| timestamps | | |
+
+**Indexes:** `[scope, employee_id, date]`, `[scope, status]`
+
+### Enums
+
+```php
+// src/Enums/OvertimeStatus.php
+enum OvertimeStatus: string {
+    case Pending = 'pending';
+    case Approved = 'approved';
+    case Rejected = 'rejected';
+    case Rendered = 'rendered';     // OT done, actual hours recorded
+    case Cancelled = 'cancelled';
+
+    public function label(): string { ... }
+}
+```
+
+### Service: `OvertimeService`
+
+```php
+namespace Jmal\Hris\Services;
+
+class OvertimeService
+{
+    public function __construct(
+        protected ApprovalWorkflowInterface $workflow,
+    ) {}
+
+    /**
+     * File an overtime request (pre-approval).
+     * OT must be requested before or on the day it's rendered.
+     */
+    public function fileRequest(Employee $employee, array $data): OvertimeRequest
+
+    /** Approve an OT request. */
+    public function approve(OvertimeRequest $request, int $approverId): OvertimeRequest
+
+    /** Reject an OT request. */
+    public function reject(OvertimeRequest $request, int $approverId, string $reason): OvertimeRequest
+
+    /**
+     * Record actual OT hours rendered (after the fact).
+     * Only approved OT requests can be rendered.
+     * Updates the linked attendance record's overtime_hours.
+     */
+    public function recordRendered(OvertimeRequest $request, float $actualHours): OvertimeRequest
+
+    /** Cancel a pending OT request. */
+    public function cancel(OvertimeRequest $request): OvertimeRequest
+
+    /**
+     * Get approved+rendered OT for a pay period.
+     * PayrollService uses this instead of raw attendance OT —
+     * only approved OT counts in payroll.
+     */
+    public function getApprovedForPeriod(Employee $employee, Carbon $from, Carbon $to): Collection
+
+    /** Get total approved OT hours for a pay period. */
+    public function getTotalApprovedHours(Employee $employee, Carbon $from, Carbon $to): float
+
+    /** Get pending OT requests for a branch (for approvers). */
+    public function getPendingForBranch(int $scopeId): Collection
+}
+```
+
+### Integration with Payroll
+
+The `PayrollService` computation flow (Phase 5) should be updated:
+
+```
+// BEFORE (Phase 5 original):
+// OT hours come directly from attendance records
+
+// AFTER (with Phase 8):
+// OT hours come from approved OvertimeRequests only
+// Unapproved OT in attendance does NOT count in payroll
+```
+
+Add to `config/hris.php`:
+```php
+'payroll' => [
+    // ...
+    'require_ot_approval' => true,  // if false, use raw attendance OT
+],
+```
+
+### Events
+
+```php
+OvertimeRequested  { OvertimeRequest $request }
+OvertimeApproved   { OvertimeRequest $request, int $approverId }
+OvertimeRejected   { OvertimeRequest $request, int $approverId, string $reason }
+OvertimeRendered   { OvertimeRequest $request }
+OvertimeCancelled  { OvertimeRequest $request }
+```
+
+### Checklist
+
+- [ ] Migration: `create_hris_overtime_requests_table`
+- [ ] Enum: OvertimeStatus
+- [ ] Model: OvertimeRequest
+- [ ] Service: OvertimeService
+- [ ] Config: add `payroll.require_ot_approval` to `config/hris.php`
+- [ ] Events: OvertimeRequested, OvertimeApproved, OvertimeRejected, OvertimeRendered, OvertimeCancelled
+- [ ] Update PayrollService to check `require_ot_approval` config
+- [ ] Tests: see below
+
+### Test Cases
+
+```php
+test('can file overtime request', function () { ... });
+test('OT request requires reason', function () { ... });
+test('can approve OT request', function () { ... });
+test('can reject OT request with reason', function () { ... });
+test('can record actual hours on approved OT', function () { ... });
+test('cannot render unapproved OT', function () { ... });
+test('cancelled OT does not count in payroll', function () { ... });
+test('only approved+rendered OT included in payroll when require_ot_approval is true', function () {
+    // Employee has 3 hours attendance OT, but only 2 hours approved
+    // Payroll should use 2 hours, not 3
+});
+test('raw attendance OT used in payroll when require_ot_approval is false', function () { ... });
+test('rest day OT uses 30% rate', function () { ... });
+test('holiday OT uses holiday premium rate', function () { ... });
+test('pending OT requests listed for branch approver', function () { ... });
+test('OvertimeApproved event dispatched', function () { ... });
+```
+
+---
+
+## Phase 9: Tardiness/Undertime Deductions & PH Government Reports
+
+### Tardiness & Undertime Deduction Rules
+
+Add to `config/hris.php`:
+```php
+'payroll' => [
+    // ...
+    'tardiness' => [
+        'grace_period_minutes' => 5,          // late < 5 min = no deduction
+        'deduction_mode' => 'proportional',   // proportional | fixed | tiered
+        // proportional: deduct (tardiness_minutes / 60) * hourly_rate
+        // fixed: flat deduction per late instance
+        // tiered: configurable brackets
+        'fixed_deduction_amount' => 50,       // used when mode = 'fixed'
+        'tiered_brackets' => [                // used when mode = 'tiered'
+            ['min' => 6, 'max' => 15, 'deduction' => 50],
+            ['min' => 16, 'max' => 30, 'deduction' => 100],
+            ['min' => 31, 'max' => 60, 'deduction' => 200],
+            ['min' => 61, 'max' => null, 'deduction' => 'half_day'],
+        ],
+    ],
+    'undertime' => [
+        'deduction_mode' => 'proportional',   // proportional | none
+        // proportional: deduct (undertime_minutes / 60) * hourly_rate
+    ],
+],
+```
+
+### Service: `TardinessDeductionCalculator`
+
+```php
+namespace Jmal\Hris\Services;
+
+class TardinessDeductionCalculator
+{
+    /**
+     * Calculate tardiness deduction for a pay period.
+     *
+     * Reads config('hris.payroll.tardiness') for mode and rules.
+     *
+     * Proportional mode:
+     *   For each attendance with tardiness > grace_period:
+     *   deduction += (tardiness_minutes - grace_period) / 60 * hourly_rate
+     *
+     * Fixed mode:
+     *   Each late instance = flat deduction
+     *
+     * Tiered mode:
+     *   Match tardiness minutes to bracket, apply bracket deduction
+     *   'half_day' = daily_rate / 2
+     *
+     * @return array{total_deduction: float, late_count: int, total_minutes: int, breakdown: array}
+     */
+    public function calculate(Employee $employee, Collection $attendances): array
+
+    /**
+     * Calculate undertime deduction for a pay period.
+     *
+     * @return array{total_deduction: float, total_minutes: int}
+     */
+    public function calculateUndertime(Employee $employee, Collection $attendances): array
+}
+```
+
+### Integration with Payroll
+
+Update `hris_payslips` table:
+| Column | Type | Notes |
+|--------|------|-------|
+| tardiness_deduction | decimal(10,2), default 0 | Added to existing table |
+| undertime_deduction | decimal(10,2), default 0 | Added to existing table |
+| late_count | integer, default 0 | Number of late instances |
+
+These are included in `total_other_deductions` and the `deductions_breakdown` JSON.
+
+### PH Government Reports
+
+#### Tables
+
+#### `hris_government_reports`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| {scope_column} | unsignedBigInteger | |
+| report_type | string | sss_r3, philhealth_rf1, pagibig_remittance, bir_1601c, bir_2316, bir_1604c |
+| period_month | integer | 1-12 |
+| period_year | integer | |
+| status | string | draft, generated, submitted, filed |
+| file_path | string, nullable | Generated report file |
+| data | json | Report data snapshot |
+| generated_by | foreignId → users, nullable | |
+| generated_at | datetime, nullable | |
+| submitted_at | datetime, nullable | |
+| remarks | text, nullable | |
+| timestamps | | |
+
+**Indexes:** `[scope, report_type, period_year, period_month]` unique
+
+### Enums
+
+```php
+// src/Enums/GovernmentReportType.php
+enum GovernmentReportType: string {
+    case SssR3 = 'sss_r3';                   // Monthly SSS contribution list
+    case PhilhealthRf1 = 'philhealth_rf1';   // Monthly PhilHealth remittance
+    case PagibigRemittance = 'pagibig_remittance'; // Monthly Pag-IBIG remittance
+    case Bir1601C = 'bir_1601c';             // Monthly withholding tax remittance
+    case Bir2316 = 'bir_2316';               // Annual employee tax certificate
+    case Bir1604C = 'bir_1604c';             // Annual information return
+
+    public function label(): string { ... }
+
+    /** Whether this report is monthly or annual. */
+    public function frequency(): string {
+        return match ($this) {
+            self::Bir2316, self::Bir1604C => 'annual',
+            default => 'monthly',
+        };
+    }
+}
+
+// src/Enums/GovernmentReportStatus.php
+enum GovernmentReportStatus: string {
+    case Draft = 'draft';
+    case Generated = 'generated';
+    case Submitted = 'submitted';
+    case Filed = 'filed';
+}
+```
+
+### Service: `GovernmentReportService`
+
+```php
+namespace Jmal\Hris\Services;
+
+class GovernmentReportService
+{
+    public function __construct(
+        protected SssCalculator $sss,
+        protected PhilHealthCalculator $philHealth,
+        protected PagIbigCalculator $pagIbig,
+    ) {}
+
+    /**
+     * Generate SSS R3 — Monthly contribution list.
+     * Lists all employees with their SSS numbers, salary credits,
+     * employee share, employer share, EC contribution.
+     *
+     * @return array{employees: array, totals: array}
+     */
+    public function generateSssR3(int $scopeId, int $year, int $month): GovernmentReport
+
+    /**
+     * Generate PhilHealth RF-1 — Monthly remittance form.
+     * Lists employees with PhilHealth numbers and contributions.
+     */
+    public function generatePhilhealthRf1(int $scopeId, int $year, int $month): GovernmentReport
+
+    /**
+     * Generate Pag-IBIG remittance — Monthly contribution list.
+     */
+    public function generatePagibigRemittance(int $scopeId, int $year, int $month): GovernmentReport
+
+    /**
+     * Generate BIR 1601-C — Monthly withholding tax remittance.
+     * Total taxes withheld from all employees for the month.
+     */
+    public function generateBir1601C(int $scopeId, int $year, int $month): GovernmentReport
+
+    /**
+     * Generate BIR 2316 — Annual tax certificate per employee.
+     * Shows total compensation, deductions, and tax withheld for the year.
+     * One record per employee.
+     */
+    public function generateBir2316(int $scopeId, int $year, Employee $employee): GovernmentReport
+
+    /**
+     * Generate BIR 1604-C — Annual information return.
+     * Summary of all employees' compensation and taxes for the year.
+     */
+    public function generateBir1604C(int $scopeId, int $year): GovernmentReport
+
+    /** Mark a report as submitted/filed. */
+    public function markSubmitted(GovernmentReport $report): GovernmentReport
+    public function markFiled(GovernmentReport $report): GovernmentReport
+
+    /** Get all reports for a period. */
+    public function getReportsForPeriod(int $scopeId, int $year, ?int $month = null): Collection
+}
+```
+
+### Events
+
+```php
+GovernmentReportGenerated { GovernmentReport $report }
+GovernmentReportSubmitted { GovernmentReport $report }
+```
+
+### Checklist
+
+- [ ] Config: add `payroll.tardiness` and `payroll.undertime` to `config/hris.php`
+- [ ] Migration: add `tardiness_deduction`, `undertime_deduction`, `late_count` to `hris_payslips`
+- [ ] Migration: `create_hris_government_reports_table`
+- [ ] Enums: GovernmentReportType, GovernmentReportStatus
+- [ ] Model: GovernmentReport
+- [ ] Service: TardinessDeductionCalculator
+- [ ] Service: GovernmentReportService
+- [ ] Update PayrollService to apply tardiness/undertime deductions
+- [ ] Events: GovernmentReportGenerated, GovernmentReportSubmitted
+- [ ] Tests: see below
+
+### Test Cases
+
+```php
+// Tardiness Deductions
+test('no deduction when tardiness within grace period', function () {
+    // grace = 5 min, employee 3 min late = no deduction
+});
+test('proportional deduction: 15 min late, 5 min grace = 10 min deducted', function () {
+    // hourly = 25000/26/8 = 120.19
+    // deduction = (10/60) * 120.19 = 20.03
+});
+test('fixed deduction: flat amount per late instance', function () { ... });
+test('tiered deduction: 20 min late matches 16-30 bracket', function () { ... });
+test('tiered half_day deduction for 61+ min late', function () { ... });
+test('multiple late instances accumulated across pay period', function () { ... });
+test('tardiness deduction included in payslip total_other_deductions', function () { ... });
+test('tardiness breakdown stored in payslip deductions_breakdown JSON', function () { ... });
+
+// Undertime Deductions
+test('undertime proportional deduction calculated correctly', function () {
+    // 30 min undertime = (30/60) * hourly_rate
+});
+test('no undertime deduction when mode is none', function () { ... });
+
+// Government Reports
+test('SSS R3 lists all employees with SSS contributions', function () { ... });
+test('SSS R3 excludes employees with deduct_sss = false', function () { ... });
+test('SSS R3 totals match sum of individual contributions', function () { ... });
+test('PhilHealth RF-1 generated with correct 50/50 split', function () { ... });
+test('Pag-IBIG remittance generated correctly', function () { ... });
+test('BIR 1601-C totals monthly withholding tax', function () { ... });
+test('BIR 2316 annual certificate computed for employee', function () {
+    // Sums all payslips for the year: total compensation, SSS, PhilHealth,
+    // PagIBIG, taxable income, tax withheld
+});
+test('BIR 1604-C annual return covers all employees', function () { ... });
+test('report status transitions: draft → generated → submitted → filed', function () { ... });
+test('GovernmentReportGenerated event dispatched', function () { ... });
+test('duplicate report for same type/period prevented', function () { ... });
+```
+
+---
+
 ## Phase Dependencies
 
 ```
-Phase 1 (Employee)     ← standalone
-Phase 2 (Attendance)   ← depends on Phase 1
-Phase 3 (Leave)        ← depends on Phase 1
-Phase 4 (Contributions)← standalone (pure calculation)
-Phase 5 (Payroll)      ← depends on ALL prior phases
-Phase 6 (Loans/13th)   ← depends on Phase 1 + Phase 5
+Phase 1 (Employee)       ← standalone
+Phase 2 (Attendance)     ← depends on Phase 1
+Phase 3 (Leave)          ← depends on Phase 1
+Phase 4 (Contributions)  ← standalone (pure calculation)
+Phase 5 (Payroll)        ← depends on Phases 1-4
+Phase 6 (Loans/13th)     ← depends on Phase 1 + Phase 5
+Phase 7 (Documents/Salary History) ← depends on Phase 1
+Phase 8 (Overtime Requests)        ← depends on Phase 1 + Phase 2, updates Phase 5
+Phase 9 (Tardiness/Reports)        ← depends on Phases 1-5
 ```
 
 ## Architecture Notes
@@ -1629,3 +2206,6 @@ Phase 6 (Loans/13th)   ← depends on Phase 1 + Phase 5
 4. **Tagged contribution calculators** — Host apps can add custom deductions (union dues, etc.) by implementing the interface and tagging.
 5. **JSON breakdowns on Payslip** — `earnings_breakdown` and `deductions_breakdown` store full audit trail without extra join tables.
 6. **Approval workflow via interface** — Default checks config roles. Host apps can swap in multi-level approval by binding a different `ApprovalWorkflowInterface`.
+7. **OT approval gating payroll** — When `require_ot_approval` is true, only approved OT counts in payroll, not raw attendance OT.
+8. **Configurable tardiness rules** — Proportional, fixed, or tiered deduction modes. Grace period prevents petty deductions.
+9. **Government report snapshots** — Report data stored as JSON for audit trail. Can be regenerated if payroll is corrected.

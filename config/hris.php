@@ -72,6 +72,27 @@ return [
         // Holiday premiums (on top of daily rate)
         'regular_holiday_premium' => 1.00,         // 100% = double pay
         'special_holiday_premium' => 0.30,         // 30%
+
+        // Overtime approval
+        'require_ot_approval' => true,             // if false, use raw attendance OT
+
+        // Tardiness deduction rules
+        'tardiness' => [
+            'grace_period_minutes' => 5,           // late < 5 min = no deduction
+            'deduction_mode' => 'proportional',    // proportional | fixed | tiered
+            'fixed_deduction_amount' => 50,        // used when mode = 'fixed'
+            'tiered_brackets' => [                 // used when mode = 'tiered'
+                ['min' => 6, 'max' => 15, 'deduction' => 50],
+                ['min' => 16, 'max' => 30, 'deduction' => 100],
+                ['min' => 31, 'max' => 60, 'deduction' => 200],
+                ['min' => 61, 'max' => null, 'deduction' => 'half_day'],
+            ],
+        ],
+
+        // Undertime deduction rules
+        'undertime' => [
+            'deduction_mode' => 'proportional',    // proportional | none
+        ],
     ],
 
     /*
