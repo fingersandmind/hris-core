@@ -49,6 +49,199 @@ Only after ALL phases pass their tests:
 
 ---
 
+## Coding Standards
+
+### PSR Compliance
+
+| Standard | Enforcement | Notes |
+|----------|------------|-------|
+| **PSR-1** | Manual | One class per file, PascalCase classes, camelCase methods |
+| **PSR-4** | `composer.json` | `Jmal\Hris\` → `src/`, `Jmal\Hris\Tests\` → `tests/` |
+| **PSR-12** | Laravel Pint | Run `vendor/bin/pint` before every commit |
+| **PSR-3** | Laravel `Log` facade | Use `Log::info()`, `Log::error()` — never `error_log()` |
+| **PSR-11** | Service container | All services bound via `HrisServiceProvider`, resolved via DI |
+
+### DRY Principles
+
+**Shared Traits (reused across 3+ models):**
+
+```php
+// src/Models/Concerns/HasConfigurableScope.php
+// Applied to ALL models — branch scoping logic in one place
+trait HasConfigurableScope { ... }
+
+// src/Models/Concerns/HasApprovalStatus.php
+// Applied to: LeaveRequest, OvertimeRequest, Loan, SalaryAdjustment
+trait HasApprovalStatus
+{
+    public function isPending(): bool { return $this->status === 'pending'; }
+    public function isApproved(): bool { return $this->status === 'approved'; }
+    public function isRejected(): bool { return $this->status === 'rejected'; }
+
+    public function scopePending(Builder $query): Builder { return $query->where('status', 'pending'); }
+    public function scopeApproved(Builder $query): Builder { return $query->where('status', 'approved'); }
+
+    public function approve(int $approverId): static
+    {
+        $this->update([
+            'status' => 'approved',
+            'approved_by' => $approverId,
+            'approved_at' => now(),
+        ]);
+        return $this;
+    }
+
+    public function reject(int $approverId, string $reason): static
+    {
+        $this->update([
+            'status' => 'rejected',
+            'approved_by' => $approverId,
+            'approved_at' => now(),
+            'rejection_reason' => $reason,
+        ]);
+        return $this;
+    }
+}
+
+// src/Models/Concerns/HasDateRangeScope.php
+// Applied to: Attendance, LeaveRequest, PayPeriod, OvertimeRequest
+trait HasDateRangeScope
+{
+    public function scopeForPeriod(Builder $query, Carbon $from, Carbon $to): Builder
+    {
+        return $query->whereBetween($this->getDateColumn(), [$from, $to]);
+    }
+
+    protected function getDateColumn(): string
+    {
+        return 'date'; // Override in models that use different column
+    }
+}
+
+// src/Models/Concerns/BelongsToEmployee.php
+// Applied to: Attendance, LeaveRequest, LeaveBalance, Payslip, Loan, OvertimeRequest, etc.
+trait BelongsToEmployee
+{
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function scopeForEmployee(Builder $query, Employee|int $employee): Builder
+    {
+        return $query->where('employee_id', $employee instanceof Employee ? $employee->id : $employee);
+    }
+}
+```
+
+**Shared Validation Rules:**
+
+```php
+// src/Rules/DateRangeRule.php
+// Reused in: LeaveRequest, PayPeriod, Attendance DTR queries, OT requests
+class DateRangeRule implements ValidationRule
+{
+    public function __construct(
+        protected string $startField = 'start_date',
+        protected string $endField = 'end_date',
+    ) {}
+
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        // end_date must be >= start_date
+    }
+}
+
+// src/Rules/UniquePerScope.php
+// Reused in: Employee (employee_number), Department (name), Position (title)
+class UniquePerScope implements ValidationRule { ... }
+```
+
+**Shared Config Readers:**
+
+```php
+// Services never hardcode rates — always read from config
+// WRONG:
+$otRate = 0.25;
+
+// RIGHT:
+$otRate = config('hris.payroll.ot_regular_rate');
+```
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|-----------|---------|
+| Tables | `hris_` prefix, plural snake_case | `hris_employees`, `hris_leave_requests` |
+| Models | Singular PascalCase | `Employee`, `LeaveRequest` |
+| Services | `{Domain}Service` | `EmployeeService`, `PayrollService` |
+| Calculators | `{Name}Calculator` | `SssCalculator`, `TardinessDeductionCalculator` |
+| Enums | Singular PascalCase | `EmploymentStatus`, `LeaveStatus` |
+| Events | Past tense | `EmployeeCreated`, `LeaveApproved` |
+| Traits | `Has{Feature}` or `{Behavior}` | `HasApprovalStatus`, `BelongsToEmployee` |
+| Contracts | `{Name}Interface` | `ContributionCalculatorInterface` |
+| Migrations | `create_hris_{group}_tables` | `create_hris_employee_tables` |
+| Config keys | dot notation, snake_case | `hris.payroll.ot_regular_rate` |
+| Form Requests | `{Action}{Model}Request` | `StoreEmployeeRequest`, `ApproveLeaveRequest` |
+
+### Code Style Rules
+
+```php
+// Use constructor property promotion
+public function __construct(
+    protected AttendanceService $attendance,
+    protected LeaveService $leave,
+) {}
+
+// Use backed string enums with label() method
+enum EmploymentStatus: string {
+    case Regular = 'regular';
+    public function label(): string { return match($this) { ... }; }
+}
+
+// Use explicit return types and parameter types
+public function calculate(float $monthlySalary, int $year): ContributionResult
+
+// Use PHPDoc only for @throws, array shapes, and non-obvious logic
+/** @throws InsufficientBalanceException */
+public function fileLeave(Employee $employee, array $data): LeaveRequest
+
+/**
+ * @return array{total_hours: float, total_overtime: float, days_present: int}
+ */
+public function getSummary(Employee $employee, Carbon $from, Carbon $to): array
+
+// Prefer early returns over deep nesting
+public function clockIn(Employee $employee): Attendance
+{
+    if ($this->hasActiveClock($employee)) {
+        throw new AlreadyClockedInException();
+    }
+
+    return Attendance::create([...]);
+}
+
+// Use events for side effects, not inline logic
+// WRONG:
+public function approve(LeaveRequest $request, int $approverId): LeaveRequest
+{
+    $request->approve($approverId);
+    $this->sendNotification($request);  // side effect in service
+    $this->updateCalendar($request);    // another side effect
+    return $request;
+}
+
+// RIGHT:
+public function approve(LeaveRequest $request, int $approverId): LeaveRequest
+{
+    $request->approve($approverId);
+    event(new LeaveApproved($request, $approverId));  // listeners handle side effects
+    return $request;
+}
+```
+
+---
+
 ## Phase 1: Employee Management
 
 ### Tables
