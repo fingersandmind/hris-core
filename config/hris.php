@@ -40,6 +40,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'user_model' => 'App\\Models\\User',
+    'branch_model' => 'App\\Models\\Branch',
 
     /*
     |--------------------------------------------------------------------------
@@ -64,6 +65,7 @@ return [
         'working_days_per_month' => 26,            // for daily rate calculation (default for 6-day week)
         'rest_days' => ['sunday'],                 // default rest days (overridable per employee)
         'deduct_absences' => true,                 // deduct daily_rate per absent day
+        'gov_deduction_mode' => 'first_half',      // first_half | spread (overridable per branch)
 
         // Overtime rates (multiplied on top of hourly rate)
         'ot_regular_rate' => 0.25,                 // +25% on regular day

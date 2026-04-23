@@ -129,7 +129,8 @@ class PayrollService
         $grossPay = round($basicPay + $overtimePay + $holidayPay + $nightDiffPay + $totalAllowances, 2);
 
         // 8. Government deductions
-        $govDeductions = $this->calculateGovDeductions($employee, $monthlySalary, $payPeriod);
+        $deductionMode = $this->resolveDeductionMode($payPeriod);
+        $govDeductions = $this->calculateGovDeductions($employee, $monthlySalary, $payPeriod, $deductionMode);
         $totalGovDeductions = $govDeductions['total'];
 
         // 9. Withholding tax
@@ -343,28 +344,42 @@ class PayrollService
     }
 
     /**
-     * Calculate government deductions based on employee flags.
+     * Calculate government deductions based on employee flags and deduction mode.
      *
-     * For semi-monthly: full monthly contribution on first period only.
-     * For weekly: split monthly contribution across 4 weeks.
+     * Modes:
+     * - 'first_half': full monthly deduction on 1st period, skip 2nd half (default)
+     * - 'spread': divide monthly deduction equally across all periods
      *
      * @return array{sss: float, philhealth: float, pagibig: float, total: float}
      */
-    protected function calculateGovDeductions(Employee $employee, float $monthlySalary, PayPeriod $payPeriod): array
+    protected function calculateGovDeductions(Employee $employee, float $monthlySalary, PayPeriod $payPeriod, string $deductionMode = 'first_half'): array
     {
         $year = $payPeriod->start_date->year;
         $sss = 0.0;
         $philhealth = 0.0;
         $pagibig = 0.0;
 
-        // Determine divisor for splitting monthly contributions
-        $divisor = $this->getContributionDivisor($payPeriod->type);
-
-        // Skip second-half semi-monthly (deduct on first half only)
         $type = $payPeriod->type instanceof PayPeriodType
             ? $payPeriod->type
             : PayPeriodType::from($payPeriod->type);
-        $skipDeductions = $type === PayPeriodType::SemiMonthlySecond;
+
+        // Determine divisor and whether to skip
+        if ($deductionMode === 'spread') {
+            // Spread: divide equally across all periods, never skip
+            $divisor = match ($type) {
+                PayPeriodType::SemiMonthlyFirst, PayPeriodType::SemiMonthlySecond => 2,
+                PayPeriodType::Weekly => 4,
+                default => 1,
+            };
+            $skipDeductions = false;
+        } else {
+            // First-half mode: full deduction on 1st period, skip 2nd
+            $divisor = match ($type) {
+                PayPeriodType::Weekly => 4,
+                default => 1,
+            };
+            $skipDeductions = $type === PayPeriodType::SemiMonthlySecond;
+        }
 
         if (! $skipDeductions) {
             foreach ($this->contributionCalculators as $calculator) {
@@ -374,7 +389,6 @@ class PayrollService
                     continue;
                 }
 
-                // Use per-contribution salary base override if set, otherwise use actual salary
                 $salaryBase = match ($name) {
                     'sss' => $employee->sss_salary_base ? (float) $employee->sss_salary_base : $monthlySalary,
                     'philhealth' => $employee->philhealth_salary_base ? (float) $employee->philhealth_salary_base : $monthlySalary,
@@ -402,14 +416,30 @@ class PayrollService
     }
 
     /**
-     * Get the divisor for splitting monthly contributions across pay periods.
+     * Resolve the government deduction mode for a pay period.
+     *
+     * Checks the branch model for a 'gov_deduction_mode' attribute,
+     * falls back to config('hris.payroll.gov_deduction_mode', 'first_half').
+     *
+     * @return string 'first_half' or 'spread'
      */
-    protected function getContributionDivisor(PayPeriodType $type): int
+    protected function resolveDeductionMode(PayPeriod $payPeriod): string
     {
-        return match ($type) {
-            PayPeriodType::Weekly => 4,
-            default => 1,
-        };
+        $scopeColumn = Employee::scopeColumn();
+        $branchId = $payPeriod->{$scopeColumn};
+
+        // Try to read from the branch model (host app may have this column)
+        try {
+            $branchModel = config('hris.branch_model', 'App\\Models\\Branch');
+            $branch = $branchModel::find($branchId);
+            if ($branch && isset($branch->gov_deduction_mode)) {
+                return $branch->gov_deduction_mode;
+            }
+        } catch (\Throwable) {
+            // Branch model may not exist or may not have the column
+        }
+
+        return config('hris.payroll.gov_deduction_mode', 'first_half');
     }
 
     /**
