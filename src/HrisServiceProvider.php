@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Jmal\Hris\Contracts\AuthorizationResolverInterface;
 use Jmal\Hris\Contracts\ScopeResolverInterface;
+use Jmal\Hris\Contracts\TaxCalculatorInterface;
+use Jmal\Hris\Services\BirTaxCalculator;
+use Jmal\Hris\Services\PagIbigCalculator;
+use Jmal\Hris\Services\PhilHealthCalculator;
+use Jmal\Hris\Services\SssCalculator;
 
 class HrisServiceProvider extends ServiceProvider
 {
@@ -16,6 +21,14 @@ class HrisServiceProvider extends ServiceProvider
         $this->app->singleton(ScopeResolverInterface::class, fn () => new (config('hris.scope.resolver')));
 
         $this->app->singleton(AuthorizationResolverInterface::class, fn () => new (config('hris.authorization.resolver')));
+
+        // Contribution calculators
+        $this->app->singleton('hris.sss', SssCalculator::class);
+        $this->app->singleton('hris.philhealth', PhilHealthCalculator::class);
+        $this->app->singleton('hris.pagibig', PagIbigCalculator::class);
+        $this->app->singleton(TaxCalculatorInterface::class, BirTaxCalculator::class);
+
+        $this->app->tag(['hris.sss', 'hris.philhealth', 'hris.pagibig'], 'hris.contribution_calculators');
     }
 
     public function boot(): void
