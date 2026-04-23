@@ -54,9 +54,10 @@ return [
     |--------------------------------------------------------------------------
     */
     'payroll' => [
-        'default_pay_period' => 'semi_monthly',   // semi_monthly | monthly
+        'default_pay_period' => 'semi_monthly',   // weekly | semi_monthly | monthly
         'semi_monthly_cutoffs' => [15, 'end'],     // 1-15, 16-end of month
         'monthly_cutoff_day' => 'end',             // day of month or 'end'
+        'weekly_start_day' => 'monday',            // day of week the pay period starts
         'working_days_per_month' => 26,            // for daily rate calculation
 
         // Overtime rates (multiplied on top of hourly rate)

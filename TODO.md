@@ -9,6 +9,46 @@ A Philippine HRIS (Human Resource Information System) Laravel package. Backend-o
 
 ---
 
+## Important: Testing Before Integration
+
+**Every phase MUST pass all its test cases before being integrated into kazibufastnet.** The package uses `orchestra/testbench` and `pestphp/pest` for isolated testing independent of the host app.
+
+### Running Tests
+
+```bash
+cd ~/projects/packages/hris
+composer install
+vendor/bin/pest
+```
+
+### Test Environment
+
+- Uses SQLite in-memory database (`:memory:`)
+- Each test runs with `RefreshDatabase` (fresh migrations per test)
+- No dependency on kazibufastnet — tests run standalone via testbench
+
+### Quality Gates Per Phase
+
+Before marking a phase as complete:
+
+1. All test cases for the phase pass (`vendor/bin/pest --filter=PhaseFeature`)
+2. No regressions in previous phase tests (`vendor/bin/pest` — full suite)
+3. Code formatted with Pint (`vendor/bin/pint`)
+4. Service methods have proper PHPDoc with `@param`, `@return`, `@throws`
+
+### Integration into kazibufastnet
+
+Only after ALL phases pass their tests:
+
+1. Run the full test suite: `vendor/bin/pest` (all green)
+2. In kazibufastnet: `composer update jmal/hris`
+3. Run migrations: `php artisan migrate`
+4. Publish config: `php artisan vendor:publish --tag=hris-config`
+5. Run seeders (SSS table, tax table, leave types): `php artisan db:seed --class=...`
+6. Verify: `php artisan tinker --execute 'app(\Jmal\Hris\Services\EmployeeService::class);'`
+
+---
+
 ## Phase 1: Employee Management
 
 ### Tables
@@ -49,14 +89,38 @@ A Philippine HRIS (Human Resource Information System) Laravel package. Backend-o
 | date_separated | date, nullable | |
 | separation_reason | string, nullable | |
 | basic_salary | decimal(12,2), default 0 | Monthly basic |
-| pay_frequency | string, default 'semi_monthly' | semi_monthly, monthly, daily |
+| pay_frequency | string, default 'semi_monthly' | weekly, semi_monthly, monthly, daily |
 | daily_rate | decimal(10,2), nullable | Override; otherwise computed from basic_salary |
-| bank_name | string, nullable | |
-| bank_account_number | string, nullable | |
+| deduct_sss | boolean, default true | Optional SSS deduction |
+| deduct_philhealth | boolean, default true | Optional PhilHealth deduction |
+| deduct_pagibig | boolean, default true | Optional Pag-IBIG deduction |
+| deduct_tax | boolean, default true | Optional withholding tax |
 | is_active | boolean, default true | |
 | timestamps + softDeletes | | |
 
 **Indexes:** `[scope, employee_number]` unique, `[scope, is_active]`, `[scope, department]`
+
+#### `hris_employee_payout_accounts`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| employee_id | foreignId → hris_employees, cascadeOnDelete | |
+| method | string | cash, bank_transfer, gcash, maya, other |
+| bank_name | string, nullable | For bank_transfer |
+| account_number | string, nullable | Bank or e-wallet number |
+| account_name | string, nullable | Name on the account |
+| split_type | string | percentage, fixed_amount |
+| split_value | decimal(10,2) | e.g. 50.00 for 50%, or 10000.00 fixed |
+| is_primary | boolean, default false | Receives remainder after other splits |
+| is_active | boolean, default true | |
+| timestamps | | |
+
+**Rules:**
+- Exactly one `is_primary = true` per employee (receives leftover after other splits)
+- `split_type = percentage`: `split_value` is 0-100 (e.g. 50 = 50%)
+- `split_type = fixed_amount`: `split_value` is a peso amount
+- Total percentage splits must not exceed 100%
+- If only one account exists, it's automatically primary and gets 100%
 
 #### `hris_departments`
 | Column | Type | Notes |
@@ -115,9 +179,25 @@ enum Gender: string {
 
 // src/Enums/PayFrequency.php
 enum PayFrequency: string {
+    case Weekly = 'weekly';
     case SemiMonthly = 'semi_monthly';
     case Monthly = 'monthly';
     case Daily = 'daily';
+}
+
+// src/Enums/PayoutMethod.php
+enum PayoutMethod: string {
+    case Cash = 'cash';
+    case BankTransfer = 'bank_transfer';
+    case GCash = 'gcash';
+    case Maya = 'maya';
+    case Other = 'other';
+}
+
+// src/Enums/SplitType.php
+enum SplitType: string {
+    case Percentage = 'percentage';
+    case FixedAmount = 'fixed_amount';
 }
 ```
 
@@ -144,6 +224,10 @@ class Employee extends Model
         'basic_salary' => 'decimal:2',
         'daily_rate' => 'decimal:2',
         'is_active' => 'boolean',
+        'deduct_sss' => 'boolean',
+        'deduct_philhealth' => 'boolean',
+        'deduct_pagibig' => 'boolean',
+        'deduct_tax' => 'boolean',
         'employment_status' => EmploymentStatus::class,
         'civil_status' => CivilStatus::class,
         'gender' => Gender::class,
@@ -162,6 +246,7 @@ class Employee extends Model
     public function leaveRequests(): HasMany { ... }
     public function payslips(): HasMany { ... }
     public function loans(): HasMany { ... }
+    public function payoutAccounts(): HasMany { ... }  // -> hris_employee_payout_accounts
 
     // --- Accessors ---
 
@@ -317,9 +402,10 @@ class EmployeeSeparated {
 
 ### Checklist
 
-- [ ] Migration: `create_hris_employee_tables` (employees, departments, positions)
-- [ ] Enums: EmploymentStatus, CivilStatus, Gender, PayFrequency
+- [ ] Migration: `create_hris_employee_tables` (employees, employee_payout_accounts, departments, positions)
+- [ ] Enums: EmploymentStatus, CivilStatus, Gender, PayFrequency, PayoutMethod, SplitType
 - [ ] Model: Employee (with HasConfigurableScope, casts, relationships, accessors)
+- [ ] Model: EmployeePayoutAccount
 - [ ] Model: Department
 - [ ] Model: Position
 - [ ] Service: EmployeeService
@@ -360,6 +446,16 @@ test('computed daily rate uses basic_salary / 26', function () { ... });
 test('EmployeeCreated event is dispatched', function () { ... });
 test('EmployeeUpdated event contains changed fields', function () { ... });
 test('list active filters by is_active and optional department', function () { ... });
+
+// Payout Accounts
+test('can add payout account to employee', function () { ... });
+test('exactly one primary payout account per employee', function () { ... });
+test('total percentage splits cannot exceed 100', function () { ... });
+test('single account is automatically primary', function () { ... });
+test('can have multiple accounts with different methods', function () {
+    // e.g. 50% bank_transfer, 30% gcash, primary (remainder) cash
+});
+test('deactivating payout account keeps other accounts intact', function () { ... });
 ```
 
 ---
@@ -793,7 +889,7 @@ test('yearly balance initialization creates all active leave types', function ()
 | fixed_tax | decimal(12,2) | |
 | rate_over_excess | decimal(5,4) | e.g. 0.2000 for 20% |
 | effective_year | integer | |
-| pay_period | string | monthly, semi_monthly |
+| pay_period | string | weekly, semi_monthly, monthly |
 | timestamps | | |
 
 **Index:** `[effective_year, pay_period]`
@@ -1079,11 +1175,29 @@ test('all contribution calculators implement ContributionCalculatorInterface', f
 | is_active | boolean, default true | |
 | timestamps | | |
 
+#### `hris_payslip_disbursements`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| payslip_id | foreignId → hris_payslips, cascadeOnDelete | |
+| payout_account_id | foreignId → hris_employee_payout_accounts | |
+| method | string | Snapshot of method at disbursement time |
+| account_details | string, nullable | Snapshot of account number/name |
+| amount | decimal(12,2) | |
+| status | string | pending, disbursed, failed |
+| disbursed_at | datetime, nullable | |
+| reference_number | string, nullable | Transaction reference |
+| remarks | string, nullable | |
+| timestamps | | |
+
+**Indexes:** `[payslip_id]`, `[status]`
+
 ### Enums
 
 ```php
 // src/Enums/PayPeriodType.php
 enum PayPeriodType: string {
+    case Weekly = 'weekly';                         // Mon-Sun (configurable start day)
     case SemiMonthlyFirst = 'semi_monthly_first';   // 1st-15th
     case SemiMonthlySecond = 'semi_monthly_second'; // 16th-end
     case Monthly = 'monthly';
@@ -1102,6 +1216,22 @@ enum PayPeriodStatus: string {
 enum PayslipStatus: string {
     case Draft = 'draft';
     case Final = 'final';
+}
+
+// src/Enums/PayoutMethod.php
+enum PayoutMethod: string {
+    case Cash = 'cash';
+    case BankTransfer = 'bank_transfer';
+    case GCash = 'gcash';
+    case Maya = 'maya';
+    case Other = 'other';
+}
+
+// src/Enums/DisbursementStatus.php
+enum DisbursementStatus: string {
+    case Pending = 'pending';
+    case Disbursed = 'disbursed';
+    case Failed = 'failed';
 }
 ```
 
@@ -1145,6 +1275,7 @@ class PayrollService
      * 6. Allowances = sum of active recurring allowances
      * 7. Gross = basic + OT + holiday + night_diff + allowances
      * 8. Government deductions (using contribution calculators)
+     *    - Only applied if employee flags are true (deduct_sss, deduct_philhealth, etc.)
      *    - SSS, PhilHealth, Pag-IBIG based on monthly salary
      *    - For semi-monthly: full monthly contribution on first period only
      * 9. Taxable income = gross - non-taxable allowances - gov deductions
@@ -1165,26 +1296,63 @@ class PayrollService
 ### Events
 
 ```php
-PayrollComputed   { PayPeriod $payPeriod }
-PayrollApproved   { PayPeriod $payPeriod, int $approverId }
-PayrollPaid       { PayPeriod $payPeriod }
-PayslipGenerated  { Payslip $payslip }
+PayrollComputed      { PayPeriod $payPeriod }
+PayrollApproved      { PayPeriod $payPeriod, int $approverId }
+PayrollPaid          { PayPeriod $payPeriod }
+PayslipGenerated     { Payslip $payslip }
+DisbursementCreated  { PayslipDisbursement $disbursement }
+DisbursementCompleted { PayslipDisbursement $disbursement }
+DisbursementFailed   { PayslipDisbursement $disbursement, string $reason }
+```
+
+### Service: `DisbursementService`
+
+```php
+namespace Jmal\Hris\Services;
+
+class DisbursementService
+{
+    /**
+     * Generate disbursement records for a payslip based on the employee's payout accounts.
+     *
+     * Split logic:
+     * 1. Process fixed_amount splits first, deduct from net_pay
+     * 2. Process percentage splits on the original net_pay
+     * 3. Primary account receives the remainder
+     *
+     * If employee has no payout accounts, creates a single 'cash' disbursement.
+     */
+    public function generateForPayslip(Payslip $payslip): Collection
+
+    /** Mark a disbursement as completed with a reference number. */
+    public function markDisbursed(PayslipDisbursement $disbursement, ?string $referenceNumber = null): PayslipDisbursement
+
+    /** Mark a disbursement as failed. */
+    public function markFailed(PayslipDisbursement $disbursement, string $reason): PayslipDisbursement
+
+    /** Get all pending disbursements for a pay period (for batch processing). */
+    public function getPendingForPayPeriod(PayPeriod $payPeriod): Collection
+
+    /** Get disbursement summary for a pay period grouped by method. */
+    public function getSummaryByMethod(PayPeriod $payPeriod): array
+}
 ```
 
 ### Checklist
 
-- [ ] Migration: `create_hris_payroll_tables` (pay_periods, payslips, allowances)
-- [ ] Enums: PayPeriodType, PayPeriodStatus, PayslipStatus
-- [ ] Model: PayPeriod, Payslip, Allowance
-- [ ] Service: PayrollService
+- [ ] Migration: `create_hris_payroll_tables` (pay_periods, payslips, allowances, payslip_disbursements)
+- [ ] Enums: PayPeriodType, PayPeriodStatus, PayslipStatus, PayoutMethod, DisbursementStatus
+- [ ] Model: PayPeriod, Payslip, Allowance, PayslipDisbursement
+- [ ] Service: PayrollService, DisbursementService
 - [ ] Support: DefaultPayPeriodResolver (implements PayPeriodResolverInterface)
-- [ ] Events: PayrollComputed, PayrollApproved, PayrollPaid, PayslipGenerated
+- [ ] Events: PayrollComputed, PayrollApproved, PayrollPaid, PayslipGenerated, DisbursementCreated, DisbursementCompleted, DisbursementFailed
 - [ ] Register PayrollService in HrisServiceProvider with tagged calculators
 - [ ] Tests: see below
 
 ### Test Cases
 
 ```php
+test('basic pay: 25000 weekly = 25000/4 = 6250', function () { ... });
 test('basic pay: 25000 semi-monthly = 12500', function () { ... });
 test('basic pay: 25000 monthly = 25000', function () { ... });
 test('OT pay: +25% on regular day', function () {
@@ -1196,6 +1364,11 @@ test('regular holiday worked: double daily rate', function () { ... });
 test('special holiday worked: 130% daily rate', function () { ... });
 test('night diff: +10% on hourly rate', function () { ... });
 test('government deductions computed for 25000 salary', function () { ... });
+test('SSS deduction skipped when employee deduct_sss is false', function () { ... });
+test('PhilHealth deduction skipped when employee deduct_philhealth is false', function () { ... });
+test('PagIBIG deduction skipped when employee deduct_pagibig is false', function () { ... });
+test('withholding tax skipped when employee deduct_tax is false', function () { ... });
+test('consultant with all deductions disabled has zero gov deductions', function () { ... });
 test('withholding tax computed after deducting gov contributions', function () { ... });
 test('tax exempt for taxable income below threshold', function () { ... });
 test('net pay = gross - all deductions', function () { ... });
@@ -1204,8 +1377,23 @@ test('non-taxable allowances excluded from taxable income', function () { ... })
 test('payslip stores breakdown as JSON', function () { ... });
 test('pay period status transitions: draft → computed → approved → paid', function () { ... });
 test('cannot modify payslip after pay period is approved', function () { ... });
+test('weekly: gov deductions split across 4 weeks', function () { ... });
 test('semi-monthly: gov deductions on first half only', function () { ... });
 test('PayrollComputed event dispatched', function () { ... });
+
+// Disbursements
+test('disbursements generated from employee payout accounts', function () { ... });
+test('primary account receives remainder after splits', function () {
+    // net_pay = 20000
+    // Account A: fixed 5000, Account B: 30% = 6000, Account C (primary): remainder = 9000
+});
+test('percentage splits calculated on original net pay', function () { ... });
+test('single cash disbursement created when no payout accounts', function () { ... });
+test('disbursement marked as completed with reference number', function () { ... });
+test('disbursement marked as failed with reason', function () { ... });
+test('pending disbursements listed for pay period', function () { ... });
+test('summary by method aggregates amounts correctly', function () { ... });
+test('DisbursementCreated event dispatched', function () { ... });
 ```
 
 ---
