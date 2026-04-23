@@ -29,10 +29,13 @@ class EmployeeService
      */
     public function update(Employee $employee, array $data): Employee
     {
-        $changes = array_diff_assoc(
-            array_intersect_key($data, array_flip($employee->getFillable())),
-            $employee->only(array_keys($data))
+        // Convert current attributes to plain values for comparison (enums → strings)
+        $current = array_map(
+            fn ($v) => $v instanceof \BackedEnum ? $v->value : $v,
+            $employee->only(array_keys($data)),
         );
+        $incoming = array_intersect_key($data, array_flip($employee->getFillable()));
+        $changes = array_diff_assoc($incoming, $current);
 
         $employee->update($data);
 
