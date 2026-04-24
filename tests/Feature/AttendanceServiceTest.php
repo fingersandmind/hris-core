@@ -38,14 +38,16 @@ test('can clock out employee', function () {
         ->and((float) $attendance->hours_worked)->toBe(8.0);
 });
 
-test('cannot clock in twice on same day', function () {
+test('duplicate clock in returns existing record without updating time', function () {
     $employee = Employee::factory()->create(['branch_id' => 1]);
     $service = app(AttendanceService::class);
 
-    $service->clockIn($employee, Carbon::parse('2026-01-15 08:00:00'));
+    $first = $service->clockIn($employee, Carbon::parse('2026-01-15 08:00:00'));
+    $second = $service->clockIn($employee, Carbon::parse('2026-01-15 08:30:00'));
 
-    expect(fn () => $service->clockIn($employee, Carbon::parse('2026-01-15 08:30:00')))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+    expect($second->id)->toBe($first->id)
+        ->and($second->clock_in->format('H:i'))->toBe('08:00')
+        ->and(Attendance::withoutGlobalScopes()->count())->toBe(1);
 });
 
 test('hours worked: 08:00 to 17:00 with 60min break = 8 hours', function () {
