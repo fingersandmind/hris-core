@@ -18,4 +18,16 @@ enum PayPeriodType: string
             self::Monthly => 'Monthly',
         };
     }
+
+    /**
+     * Get the matching PayFrequency value for this period type.
+     */
+    public function payFrequency(): string
+    {
+        return match ($this) {
+            self::Weekly => 'weekly',
+            self::SemiMonthlyFirst, self::SemiMonthlySecond => 'semi_monthly',
+            self::Monthly => 'monthly',
+        };
+    }
 }

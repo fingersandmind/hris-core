@@ -91,7 +91,7 @@ class AttendanceService
     {
         $scopeColumn = Employee::scopeColumn();
 
-        $attendance = Attendance::create(array_merge($data, [
+        $attendance = Attendance::create(array_merge(array_filter($data, fn ($v) => $v !== null), [
             $scopeColumn => $employee->{$scopeColumn},
             'employee_id' => $employee->id,
         ]));
@@ -120,11 +120,11 @@ class AttendanceService
             return 0.0;
         }
 
-        $totalMinutes = $attendance->clock_in->diffInMinutes($attendance->clock_out);
+        $totalMinutes = abs($attendance->clock_in->diffInMinutes($attendance->clock_out));
 
         // Subtract break if recorded, otherwise use default 60 min
         if ($attendance->break_start && $attendance->break_end) {
-            $breakMinutes = $attendance->break_start->diffInMinutes($attendance->break_end);
+            $breakMinutes = abs($attendance->break_start->diffInMinutes($attendance->break_end));
         } else {
             $breakMinutes = 60;
         }
@@ -157,7 +157,7 @@ class AttendanceService
         $scheduleStart = Carbon::parse($attendance->date->format('Y-m-d').' '.$schedule->start_time);
 
         if ($attendance->clock_in->gt($scheduleStart)) {
-            return (int) $scheduleStart->diffInMinutes($attendance->clock_in);
+            return (int) abs($scheduleStart->diffInMinutes($attendance->clock_in));
         }
 
         return 0;
@@ -195,7 +195,7 @@ class AttendanceService
             return 0.0;
         }
 
-        return round($overlapStart->diffInMinutes($overlapEnd) / 60, 2);
+        return round(abs($overlapStart->diffInMinutes($overlapEnd)) / 60, 2);
     }
 
     /**

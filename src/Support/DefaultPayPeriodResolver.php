@@ -51,6 +51,16 @@ class DefaultPayPeriodResolver implements PayPeriodResolverInterface
     {
         $frequency = config('hris.payroll.default_pay_period', 'semi_monthly');
 
+        return $this->resolveForFrequency($year, $month, $frequency);
+    }
+
+    /**
+     * Resolve pay periods for a given frequency.
+     *
+     * @return array<int, array{name: string, start_date: string, end_date: string, type: string}>
+     */
+    public function resolveForFrequency(int $year, int $month, string $frequency): array
+    {
         return match ($frequency) {
             'semi_monthly' => $this->resolveSemiMonthly($year, $month),
             'monthly' => $this->resolveMonthly($year, $month),
@@ -108,37 +118,19 @@ class DefaultPayPeriodResolver implements PayPeriodResolverInterface
      */
     protected function resolveWeekly(int $year, int $month): array
     {
-        $startDay = config('hris.payroll.weekly_start_day', 'monday');
         $monthStart = Carbon::create($year, $month, 1);
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        // Find first occurrence of the start day in or before this month
-        $current = $monthStart->copy();
-        if (strtolower($current->englishDayOfWeek) !== $startDay) {
-            $current->next($startDay);
-        }
+        // Find the Monday on or before the 1st of the month
+        $current = $monthStart->copy()->startOfWeek(Carbon::MONDAY);
 
-        // If the first start day is after the 7th, include a partial week from the 1st
         $periods = [];
-        if ($current->gt($monthStart) && $current->day > 1) {
-            $periods[] = [
-                'name' => $monthStart->format('M j') . '-' . $current->copy()->subDay()->format('M j') . ", $year",
-                'start_date' => $monthStart->toDateString(),
-                'end_date' => $current->copy()->subDay()->toDateString(),
-                'type' => 'weekly',
-            ];
-        }
 
         while ($current->lte($monthEnd)) {
-            $weekEnd = $current->copy()->addDays(6);
-
-            // Cap at month end
-            if ($weekEnd->gt($monthEnd)) {
-                $weekEnd = $monthEnd->copy();
-            }
+            $weekEnd = $current->copy()->addDays(6); // Sunday
 
             $periods[] = [
-                'name' => $current->format('M j') . '-' . $weekEnd->format('M j') . ", $year",
+                'name' => $current->format('M j') . '-' . $weekEnd->format('M j') . ", {$weekEnd->year}",
                 'start_date' => $current->toDateString(),
                 'end_date' => $weekEnd->toDateString(),
                 'type' => 'weekly',

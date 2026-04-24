@@ -47,9 +47,14 @@ class PayrollService
         $payPeriod->update(['status' => 'processing']);
 
         $scopeColumn = Employee::scopeColumn();
+        $periodType = $payPeriod->type instanceof PayPeriodType
+            ? $payPeriod->type
+            : PayPeriodType::from($payPeriod->type);
+
         $employees = Employee::withoutGlobalScopes()
             ->where($scopeColumn, $payPeriod->{$scopeColumn})
             ->where('is_active', true)
+            ->where('pay_frequency', $periodType->payFrequency())
             ->get();
 
         foreach ($employees as $employee) {

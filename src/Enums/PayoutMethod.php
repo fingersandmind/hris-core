@@ -6,6 +6,7 @@ enum PayoutMethod: string
 {
     case Cash = 'cash';
     case BankTransfer = 'bank_transfer';
+    case Check = 'check';
     case GCash = 'gcash';
     case Maya = 'maya';
     case Other = 'other';
@@ -15,6 +16,7 @@ enum PayoutMethod: string
         return match ($this) {
             self::Cash => 'Cash',
             self::BankTransfer => 'Bank Transfer',
+            self::Check => 'Check',
             self::GCash => 'GCash',
             self::Maya => 'Maya',
             self::Other => 'Other',
