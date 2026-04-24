@@ -25,6 +25,7 @@ class Employee extends Model
         'user_id',
         'employee_number',
         'external_id',
+        'device_id',
         'first_name',
         'middle_name',
         'last_name',
