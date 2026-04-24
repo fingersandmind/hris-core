@@ -193,6 +193,30 @@ class LoanService
     }
 
     /**
+     * Reverse all loan payments linked to a specific payslip.
+     * Used when recomputing an employee's payslip.
+     */
+    public function reversePayslipPayments(int $payslipId): void
+    {
+        $payments = LoanPayment::where('payslip_id', $payslipId)->get();
+
+        foreach ($payments as $payment) {
+            $loan = Loan::withoutGlobalScopes()->find($payment->loan_id);
+            if ($loan) {
+                $loan->decrement('total_paid', (float) $payment->amount);
+                $loan->increment('remaining_balance', (float) $payment->amount);
+
+                // Revert fully_paid status if balance is now positive
+                if ($loan->status->value === 'fully_paid' && (float) $loan->fresh()->remaining_balance > 0) {
+                    $loan->update(['status' => 'active']);
+                }
+            }
+
+            $payment->delete();
+        }
+    }
+
+    /**
      * Cancel a loan.
      */
     public function cancel(Loan $loan): Loan

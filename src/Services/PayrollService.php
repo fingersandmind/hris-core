@@ -244,6 +244,43 @@ class PayrollService
     }
 
     /**
+     * Recompute a single employee's payslip in a computed pay period.
+     *
+     * Reverses loan payments from the old payslip, deletes it,
+     * recomputes fresh, re-records loan payments, and updates
+     * pay period totals.
+     */
+    public function recomputePayslip(PayPeriod $payPeriod, Employee $employee): Payslip
+    {
+        // Find and delete existing payslip
+        $existing = Payslip::withoutGlobalScopes()
+            ->where('pay_period_id', $payPeriod->id)
+            ->where('employee_id', $employee->id)
+            ->first();
+
+        if ($existing && $this->loanService) {
+            $this->loanService->reversePayslipPayments($existing->id);
+        }
+
+        if ($existing) {
+            $existing->delete();
+        }
+
+        // Recompute
+        $payslip = $this->computePayslip($payPeriod, $employee);
+
+        // Update pay period totals
+        $allPayslips = $payPeriod->payslips()->get();
+        $payPeriod->update([
+            'total_gross' => $allPayslips->sum(fn ($p) => (float) $p->gross_pay),
+            'total_deductions' => $allPayslips->sum(fn ($p) => (float) $p->total_deductions),
+            'total_net' => $allPayslips->sum(fn ($p) => (float) $p->net_pay),
+        ]);
+
+        return $payslip;
+    }
+
+    /**
      * Approve a computed payroll (locks payslips as final).
      */
     public function approvePayroll(PayPeriod $payPeriod, int $approverId): PayPeriod
