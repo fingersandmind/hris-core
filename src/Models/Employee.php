@@ -70,10 +70,10 @@ class Employee extends Model
     ];
 
     protected $casts = [
-        'birth_date' => 'date',
-        'date_hired' => 'date',
-        'date_regularized' => 'date',
-        'date_separated' => 'date',
+        'birth_date' => 'date:Y-m-d',
+        'date_hired' => 'date:Y-m-d',
+        'date_regularized' => 'date:Y-m-d',
+        'date_separated' => 'date:Y-m-d',
         'basic_salary' => 'decimal:2',
         'daily_rate' => 'decimal:2',
         'is_active' => 'boolean',

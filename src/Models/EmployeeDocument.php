@@ -26,7 +26,7 @@ class EmployeeDocument extends Model
     ];
 
     protected $casts = [
-        'expiry_date' => 'date',
+        'expiry_date' => 'date:Y-m-d',
         'category' => DocumentCategory::class,
     ];
 

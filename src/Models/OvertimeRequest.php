@@ -34,7 +34,7 @@ class OvertimeRequest extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'planned_hours' => 'decimal:2',
         'actual_hours' => 'decimal:2',
         'is_rest_day' => 'boolean',

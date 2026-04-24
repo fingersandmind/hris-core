@@ -32,7 +32,7 @@ class SalaryAdjustment extends Model
         'new_salary' => 'decimal:2',
         'previous_daily_rate' => 'decimal:2',
         'new_daily_rate' => 'decimal:2',
-        'effective_date' => 'date',
+        'effective_date' => 'date:Y-m-d',
         'approved_at' => 'datetime',
         'reason' => SalaryAdjustmentReason::class,
     ];

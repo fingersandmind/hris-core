@@ -30,9 +30,9 @@ class PayPeriod extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'pay_date' => 'date',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
+        'pay_date' => 'date:Y-m-d',
         'total_gross' => 'decimal:2',
         'total_deductions' => 'decimal:2',
         'total_net' => 'decimal:2',

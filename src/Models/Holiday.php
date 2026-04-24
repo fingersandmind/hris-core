@@ -18,7 +18,7 @@ class Holiday extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'type' => HolidayType::class,
         'is_recurring' => 'boolean',
     ];

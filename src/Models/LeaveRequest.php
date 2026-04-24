@@ -34,8 +34,8 @@ class LeaveRequest extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
         'total_days' => 'decimal:2',
         'is_half_day' => 'boolean',
         'approved_at' => 'datetime',
