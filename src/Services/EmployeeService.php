@@ -29,12 +29,15 @@ class EmployeeService
      */
     public function update(Employee $employee, array $data): Employee
     {
-        // Convert current attributes to plain values for comparison (enums → strings)
+        // Convert current attributes to plain values for comparison (enums → strings, arrays → JSON)
         $current = array_map(
-            fn ($v) => $v instanceof \BackedEnum ? $v->value : $v,
+            fn ($v) => $v instanceof \BackedEnum ? $v->value : (is_array($v) ? json_encode($v) : $v),
             $employee->only(array_keys($data)),
         );
-        $incoming = array_intersect_key($data, array_flip($employee->getFillable()));
+        $incoming = array_map(
+            fn ($v) => is_array($v) ? json_encode($v) : $v,
+            array_intersect_key($data, array_flip($employee->getFillable())),
+        );
         $changes = array_diff_assoc($incoming, $current);
 
         $employee->update($data);
