@@ -244,6 +244,110 @@ class PayrollService
     }
 
     /**
+     * Preview a recomputed payslip without saving.
+     * Returns the computed values as an array for comparison.
+     *
+     * @return array<string, mixed>
+     */
+    public function previewPayslip(PayPeriod $payPeriod, Employee $employee): array
+    {
+        $scopeColumn = Employee::scopeColumn();
+        $monthlySalary = (float) $employee->basic_salary;
+        $dailyRate = $employee->computedDailyRate();
+        $hourlyRate = round($dailyRate / 8, 2);
+
+        $basicPay = $this->calculateBasicPay($monthlySalary, $payPeriod->type);
+
+        $summary = $this->attendance->getSummary($employee, $payPeriod->start_date, $payPeriod->end_date);
+
+        $otHours = $summary['total_overtime'];
+        if (config('hris.payroll.require_ot_approval', true) && $this->overtimeService) {
+            $otHours = $this->overtimeService->getTotalApprovedHours($employee, $payPeriod->start_date, $payPeriod->end_date);
+        }
+        $otRate = config('hris.payroll.ot_regular_rate', 0.25);
+        $overtimePay = round($hourlyRate * (1 + $otRate) * $otHours, 2);
+
+        $holidayPay = $this->calculateHolidayPay($employee, $payPeriod);
+
+        $nightDiffRate = config('hris.payroll.night_diff_rate', 0.10);
+        $nightDiffPay = round($hourlyRate * $nightDiffRate * $summary['total_night_diff'], 2);
+
+        $allowanceData = $this->getActiveAllowances($employee, $payPeriod);
+        $totalAllowances = $allowanceData['total'];
+        $nonTaxableAllowances = $allowanceData['non_taxable'];
+
+        $grossPay = round($basicPay + $overtimePay + $holidayPay + $nightDiffPay + $totalAllowances, 2);
+
+        $deductionMode = $this->resolveDeductionMode($payPeriod);
+        $govDeductions = $this->calculateGovDeductions($employee, $monthlySalary, $payPeriod, $deductionMode);
+        $totalGovDeductions = $govDeductions['total'];
+
+        $withholdingTax = 0.0;
+        if ($employee->deduct_tax) {
+            $taxableIncome = $grossPay - $nonTaxableAllowances - $totalGovDeductions;
+            $taxPayPeriod = $this->getTaxPayPeriod($payPeriod->type);
+            $withholdingTax = $this->tax->calculate($taxableIncome, $taxPayPeriod, $payPeriod->start_date->year);
+        }
+
+        $loanDeductions = 0.0;
+        $loanBreakdown = [];
+        if ($this->loanService) {
+            $loanBreakdown = $this->loanService->getAmortizationBreakdown($employee, $payPeriod);
+            $loanDeductions = round(array_sum(array_column($loanBreakdown, 'amount')), 2);
+        }
+
+        $tardinessDeduction = 0.0;
+        $undertimeDeduction = 0.0;
+        $lateCount = 0;
+        if ($this->tardinessCalculator) {
+            $attendanceRecords = $this->attendance->getDtr($employee, $payPeriod->start_date, $payPeriod->end_date);
+            $tardinessResult = $this->tardinessCalculator->calculate($employee, $attendanceRecords);
+            $tardinessDeduction = $tardinessResult['total_deduction'];
+            $lateCount = $tardinessResult['late_count'];
+            $undertimeResult = $this->tardinessCalculator->calculateUndertime($employee, $attendanceRecords);
+            $undertimeDeduction = $undertimeResult['total_deduction'];
+        }
+
+        $absentDeduction = 0.0;
+        $absentDays = 0;
+        if (config('hris.payroll.deduct_absences', true)) {
+            $absentResult = $this->calculateAbsentDeduction($employee, $payPeriod, $summary);
+            $absentDeduction = $absentResult['deduction'];
+            $absentDays = $absentResult['absent_days'];
+        }
+
+        $totalOtherDeductions = round($loanDeductions + $tardinessDeduction + $undertimeDeduction + $absentDeduction, 2);
+        $totalDeductions = round($totalGovDeductions + $withholdingTax + $totalOtherDeductions, 2);
+        $netPay = round($grossPay - $totalDeductions, 2);
+
+        return [
+            'basic_pay' => $basicPay,
+            'overtime_pay' => $overtimePay,
+            'holiday_pay' => $holidayPay,
+            'night_diff_pay' => $nightDiffPay,
+            'allowances' => $totalAllowances,
+            'gross_pay' => $grossPay,
+            'sss_contribution' => $govDeductions['sss'],
+            'philhealth_contribution' => $govDeductions['philhealth'],
+            'pagibig_contribution' => $govDeductions['pagibig'],
+            'withholding_tax' => $withholdingTax,
+            'total_gov_deductions' => $totalGovDeductions,
+            'loan_deductions' => $loanDeductions,
+            'tardiness_deduction' => $tardinessDeduction,
+            'undertime_deduction' => $undertimeDeduction,
+            'absent_deduction' => $absentDeduction,
+            'absent_days' => $absentDays,
+            'late_count' => $lateCount,
+            'total_deductions' => $totalDeductions,
+            'net_pay' => $netPay,
+            'attendance_summary' => array_merge($summary, [
+                'expected_days' => $employee->countWorkingDays($payPeriod->start_date, $payPeriod->end_date),
+                'absent_days' => $absentDays,
+            ]),
+        ];
+    }
+
+    /**
      * Recompute a single employee's payslip in a computed pay period.
      *
      * Reverses loan payments from the old payslip, deletes it,
