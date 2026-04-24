@@ -155,6 +155,9 @@ class PayrollService
         $undertimeDeduction = 0.0;
         $lateCount = 0;
         if ($this->tardinessCalculator) {
+            // Load branch-specific tardiness settings into config
+            $this->loadBranchTardinessConfig($payPeriod);
+
             $attendanceRecords = $this->attendance->getDtr($employee, $payPeriod->start_date, $payPeriod->end_date);
             $tardinessResult = $this->tardinessCalculator->calculate($employee, $attendanceRecords);
             $tardinessDeduction = $tardinessResult['total_deduction'];
@@ -657,5 +660,43 @@ class PayrollService
             'expected_days' => $expectedDays,
             'present_days' => $presentDays,
         ];
+    }
+
+    /**
+     * Load branch-specific tardiness settings into config.
+     * The TardinessDeductionCalculator reads from config, so we override
+     * config values with branch-level settings before calling it.
+     */
+    protected function loadBranchTardinessConfig(PayPeriod $payPeriod): void
+    {
+        try {
+            $branchModel = config('hris.branch_model', 'App\\Models\\Branch');
+            $scopeColumn = Employee::scopeColumn();
+            $branch = $branchModel::find($payPeriod->{$scopeColumn});
+
+            if (! $branch) {
+                return;
+            }
+
+            if (isset($branch->tardiness_mode)) {
+                config(['hris.payroll.tardiness.deduction_mode' => $branch->tardiness_mode]);
+            }
+            if (isset($branch->tardiness_grace_minutes)) {
+                config(['hris.payroll.tardiness.grace_period_minutes' => (int) $branch->tardiness_grace_minutes]);
+            }
+            if (isset($branch->tardiness_fixed_amount)) {
+                config(['hris.payroll.tardiness.fixed_deduction_amount' => (float) $branch->tardiness_fixed_amount]);
+            }
+            if (! empty($branch->tardiness_tiered_brackets)) {
+                $brackets = is_string($branch->tardiness_tiered_brackets)
+                    ? json_decode($branch->tardiness_tiered_brackets, true)
+                    : $branch->tardiness_tiered_brackets;
+                if (is_array($brackets) && count($brackets) > 0) {
+                    config(['hris.payroll.tardiness.tiered_brackets' => $brackets]);
+                }
+            }
+        } catch (\Throwable) {
+            // Branch model may not have these columns
+        }
     }
 }
