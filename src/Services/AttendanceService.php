@@ -28,6 +28,17 @@ class AttendanceService
         $now = $time ?? now();
         $scopeColumn = Employee::scopeColumn();
 
+        // Check if already clocked in today
+        $existing = Attendance::withoutGlobalScopes()
+            ->where($scopeColumn, $employee->{$scopeColumn})
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', $now->toDateString())
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
         $attendance = Attendance::create([
             $scopeColumn => $employee->{$scopeColumn},
             'employee_id' => $employee->id,
