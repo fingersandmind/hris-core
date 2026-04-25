@@ -106,6 +106,11 @@ class Employee extends Model
         return $this->hasMany(EmployeePayoutAccount::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class);
+    }
+
     // --- Accessors ---
 
     protected function fullName(): Attribute
