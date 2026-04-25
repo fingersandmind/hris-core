@@ -111,6 +111,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeDocument::class);
     }
 
+    public function leaveBalances(): HasMany
+    {
+        return $this->hasMany(LeaveBalance::class);
+    }
+
     // --- Accessors ---
 
     protected function fullName(): Attribute
