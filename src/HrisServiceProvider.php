@@ -55,6 +55,7 @@ class HrisServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'hris');
         $this->registerRoutes();
         $this->registerNotificationListeners();
+        $this->registerActivityLogListeners();
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -93,5 +94,38 @@ class HrisServiceProvider extends ServiceProvider
 
         // Payslip ready
         Event::listen(Events\PayrollApproved::class, Listeners\NotifyEmployeesOfPayslipReady::class);
+    }
+
+    protected function registerActivityLogListeners(): void
+    {
+        $events = [
+            Events\EmployeeCreated::class,
+            Events\EmployeeUpdated::class,
+            Events\EmployeeSeparated::class,
+            Events\LeaveRequested::class,
+            Events\LeaveApproved::class,
+            Events\LeaveRejected::class,
+            Events\LeaveCancelled::class,
+            Events\OvertimeRequested::class,
+            Events\OvertimeApproved::class,
+            Events\OvertimeRejected::class,
+            Events\OvertimeCancelled::class,
+            Events\OvertimeRendered::class,
+            Events\PayrollComputed::class,
+            Events\PayrollApproved::class,
+            Events\PayrollPaid::class,
+            Events\LoanCreated::class,
+            Events\LoanApproved::class,
+            Events\LoanFullyPaid::class,
+            Events\SalaryAdjusted::class,
+            Events\DocumentUploaded::class,
+            Events\DocumentDeleted::class,
+            Events\GovernmentReportGenerated::class,
+            Events\GovernmentReportSubmitted::class,
+        ];
+
+        foreach ($events as $event) {
+            Event::listen($event, Listeners\LogActivity::class);
+        }
     }
 }
