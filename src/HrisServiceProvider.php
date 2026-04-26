@@ -2,6 +2,7 @@
 
 namespace Jmal\Hris;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Jmal\Hris\Contracts\AuthorizationResolverInterface;
@@ -51,7 +52,9 @@ class HrisServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'hris');
         $this->registerRoutes();
+        $this->registerNotificationListeners();
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -69,5 +72,26 @@ class HrisServiceProvider extends ServiceProvider
         Route::prefix(config('hris.routes.prefix'))
             ->middleware(config('hris.routes.middleware'))
             ->group(__DIR__.'/../routes/web.php');
+    }
+
+    protected function registerNotificationListeners(): void
+    {
+        if (! config('hris.notifications.enabled', true)) {
+            return;
+        }
+
+        // Admin notifications — new requests filed
+        Event::listen(Events\LeaveRequested::class, Listeners\NotifyAdminsOfLeaveRequest::class);
+        Event::listen(Events\OvertimeRequested::class, Listeners\NotifyAdminsOfOvertimeRequest::class);
+        Event::listen(Events\LoanCreated::class, Listeners\NotifyAdminsOfLoanApplication::class);
+
+        // Employee notifications — decisions on their requests
+        Event::listen(Events\LeaveApproved::class, Listeners\NotifyEmployeeOfLeaveDecision::class);
+        Event::listen(Events\LeaveRejected::class, Listeners\NotifyEmployeeOfLeaveDecision::class);
+        Event::listen(Events\OvertimeApproved::class, Listeners\NotifyEmployeeOfOvertimeDecision::class);
+        Event::listen(Events\OvertimeRejected::class, Listeners\NotifyEmployeeOfOvertimeDecision::class);
+
+        // Payslip ready
+        Event::listen(Events\PayrollApproved::class, Listeners\NotifyEmployeesOfPayslipReady::class);
     }
 }
