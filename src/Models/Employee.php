@@ -116,6 +116,11 @@ class Employee extends Model
         return $this->hasMany(LeaveBalance::class);
     }
 
+    public function salaryAdjustments(): HasMany
+    {
+        return $this->hasMany(SalaryAdjustment::class);
+    }
+
     // --- Accessors ---
 
     protected function fullName(): Attribute
