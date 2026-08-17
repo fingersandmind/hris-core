@@ -12,10 +12,11 @@ class NotifyAdminsOfLoanApplication
     {
         $loan = $event->loan;
         $loan->loadMissing('employee');
-        $branchId = $loan->employee->branch_id;
+        $scopeColumn = config('hris.scope.column', 'branch_id');
+        $scopeId = $loan->employee->{$scopeColumn};
 
         $userModel = config('hris.user_model', 'App\\Models\\User');
-        $admins = $userModel::where('branch_id', $branchId)
+        $admins = $userModel::where($scopeColumn, $scopeId)
             ->whereIn('role', ['admin', 'hr_manager'])
             ->get();
 

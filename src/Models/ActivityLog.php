@@ -27,6 +27,21 @@ class ActivityLog extends Model
         'created_at' => 'datetime',
     ];
 
+    /**
+     * Prepend the configured scope column so a tenant value is never silently
+     * dropped when the scope is not named branch_id.
+     *
+     * @return array<int, string>
+     */
+    public function getFillable(): array
+    {
+        $scopeColumn = config('hris.scope.column', 'branch_id');
+
+        return in_array($scopeColumn, $this->fillable, true)
+            ? $this->fillable
+            : array_merge([$scopeColumn], $this->fillable);
+    }
+
     public function user()
     {
         $userModel = config('hris.user_model', 'App\\Models\\User');

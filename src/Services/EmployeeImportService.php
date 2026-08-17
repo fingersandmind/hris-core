@@ -129,7 +129,7 @@ class EmployeeImportService
 
         if (! empty($data['employee_number'])) {
             $exists = Employee::withoutGlobalScopes()
-                ->where('branch_id', $scopeId)
+                ->where(Employee::scopeColumn(), $scopeId)
                 ->where('employee_number', $data['employee_number'])
                 ->exists();
 

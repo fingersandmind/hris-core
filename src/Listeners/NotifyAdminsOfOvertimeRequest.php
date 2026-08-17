@@ -12,10 +12,11 @@ class NotifyAdminsOfOvertimeRequest
     {
         $ot = $event->request;
         $ot->loadMissing('employee');
-        $branchId = $ot->employee->branch_id;
+        $scopeColumn = config('hris.scope.column', 'branch_id');
+        $scopeId = $ot->employee->{$scopeColumn};
 
         $userModel = config('hris.user_model', 'App\\Models\\User');
-        $admins = $userModel::where('branch_id', $branchId)
+        $admins = $userModel::where($scopeColumn, $scopeId)
             ->whereIn('role', ['admin', 'hr_manager'])
             ->get();
 

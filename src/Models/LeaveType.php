@@ -30,4 +30,19 @@ class LeaveType extends Model
         'is_active' => 'boolean',
         'gender_restriction' => Gender::class,
     ];
+
+    /**
+     * Prepend the configured scope column so a tenant value is never silently
+     * dropped when the scope is not named branch_id.
+     *
+     * @return array<int, string>
+     */
+    public function getFillable(): array
+    {
+        $scopeColumn = config('hris.scope.column', 'branch_id');
+
+        return in_array($scopeColumn, $this->fillable, true)
+            ? $this->fillable
+            : array_merge([$scopeColumn], $this->fillable);
+    }
 }

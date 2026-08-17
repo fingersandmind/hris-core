@@ -18,10 +18,11 @@ class ActivityLogger
         ?array $changes = null,
     ): ActivityLog {
         $user = Auth::user();
-        $branchId = $subject->branch_id ?? $subject->{$subject->scopeColumn ?? 'branch_id'} ?? $user?->branch_id ?? null;
+        $scopeColumn = config('hris.scope.column', 'branch_id');
+        $scopeId = $subject->{$scopeColumn} ?? $user?->{$scopeColumn} ?? null;
 
         return ActivityLog::create([
-            'branch_id' => $branchId,
+            $scopeColumn => $scopeId,
             'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'System',
             'action' => $action,

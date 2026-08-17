@@ -12,20 +12,21 @@ class NotifyAdminsOfLeaveRequest
     {
         $leave = $event->leaveRequest;
         $leave->loadMissing('employee');
-        $branchId = $leave->employee->branch_id;
+        $scopeColumn = config('hris.scope.column', 'branch_id');
 
-        $admins = $this->getAdmins($branchId);
+        $admins = $this->getAdmins($leave->employee->{$scopeColumn});
 
         if ($admins->isNotEmpty()) {
             Notification::send($admins, new NewLeaveRequestNotification($leave));
         }
     }
 
-    protected function getAdmins(int $branchId)
+    protected function getAdmins(int $scopeId)
     {
         $userModel = config('hris.user_model', 'App\\Models\\User');
+        $scopeColumn = config('hris.scope.column', 'branch_id');
 
-        return $userModel::where('branch_id', $branchId)
+        return $userModel::where($scopeColumn, $scopeId)
             ->whereIn('role', ['admin', 'hr_manager'])
             ->get();
     }
