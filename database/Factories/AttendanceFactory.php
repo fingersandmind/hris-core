@@ -18,6 +18,7 @@ class AttendanceFactory extends Factory
         $clockOut = (clone $date)->setTime(17, 0);
 
         return [
+            Attendance::scopeColumn() => 1,
             'branch_id' => 1,
             'employee_id' => Employee::factory(),
             'date' => $date->format('Y-m-d'),

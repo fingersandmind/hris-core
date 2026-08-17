@@ -12,6 +12,7 @@ class EmployeeFactory extends Factory
     public function definition(): array
     {
         return [
+            Employee::scopeColumn() => 1,
             'branch_id' => 1,
             'employee_number' => 'EMP-'.$this->faker->unique()->numerify('####'),
             'first_name' => $this->faker->firstName(),
