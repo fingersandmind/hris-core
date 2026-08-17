@@ -25,7 +25,7 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->timestamps();
 
-            $table->unique([$scopeColumn, 'report_type', 'period_year', 'period_month']);
+            $table->unique([$scopeColumn, 'report_type', 'period_year', 'period_month'], 'hris_gov_reports_period_unique');
         });
     }
 

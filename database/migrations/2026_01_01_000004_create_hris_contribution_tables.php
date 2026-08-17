@@ -19,7 +19,7 @@ return new class extends Migration
             $table->integer('effective_year');
             $table->timestamps();
 
-            $table->index(['effective_year', 'range_from', 'range_to']);
+            $table->index(['effective_year', 'range_from', 'range_to'], 'hris_sss_bracket_lookup_index');
         });
 
         Schema::create('hris_tax_table', function (Blueprint $table) {

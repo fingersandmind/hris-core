@@ -17,7 +17,7 @@ return new class extends Migration
             $table->time('start_time');
             $table->time('end_time');
             $table->integer('break_minutes')->default(60);
-            $table->json('work_days')->default('[1,2,3,4,5]');
+            $table->json('work_days')->nullable();
             $table->boolean('is_default')->default(false);
             $table->timestamps();
         });
